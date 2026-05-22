@@ -1,24 +1,21 @@
-"""This code blocks helps to compares freshly scraped normalized plans against DB state.
+"""app/detection/change_detector.py
+Compares freshly-scraped normalized plans against DB state.
 Emits structured ChangeEvent objects and persists everything in one transaction.
 """
-from asyncio import events
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.db import session
-from app.models import Plan, PricingHistory, ChangeLog, ChangeType, SeverityLevel, isp_id
+from app.models import Plan, PricingHistory, ChangeLog, ChangeType, SeverityLevel
 from app.normalization.normalizer import NormalizedPlan
 from app.logger import get_logger
 
-
-  
 logger = get_logger(__name__)
- 
-PRICE_DELTA_THRESHOLD_PCT = 0.5   # ignore rounding noise below 0.5%
-SPEED_DELTA_THRESHOLD_MBPS = 5    # ignore tiny speed tweaks
- 
- 
+
+PRICE_DELTA_THRESHOLD_PCT = 0.5
+SPEED_DELTA_THRESHOLD_MBPS = 5
+
+
 @dataclass
 class ChangeEvent:
     isp_id: int
@@ -32,25 +29,22 @@ class ChangeEvent:
     old_value: Optional[object] = None
     new_value: Optional[object] = None
     diff_pct: Optional[float] = None
- 
- 
+
+
 def _price_severity(diff_pct: float) -> SeverityLevel:
     abs_diff = abs(diff_pct)
     if abs_diff >= 30: return SeverityLevel.critical
     if abs_diff >= 20: return SeverityLevel.high
     if abs_diff >= 10: return SeverityLevel.medium
     return SeverityLevel.low
- 
- 
+
+
 def _plan_key(isp_id: int, normalized_name: str, download_mbps: int) -> str:
     return f"{isp_id}:{normalized_name.lower()}:{download_mbps}"
- 
- 
+
+
 class ChangeDetector:
-    """
-    Synchronous detector — runs inside Celery task with a sync DB session.
-    """
- 
+
     def detect_and_persist(
         self,
         scraped_plans: list[NormalizedPlan],
@@ -59,11 +53,10 @@ class ChangeDetector:
     ) -> list[ChangeEvent]:
         if not scraped_plans:
             return []
- 
+
         isp_id = scraped_plans[0].isp_id
         events: list[ChangeEvent] = []
- 
-        
+
         existing_plans: list[Plan] = (
             session.query(Plan)
             .filter(Plan.isp_id == isp_id, Plan.status.in_(["active", "promotional"]))
@@ -77,29 +70,27 @@ class ChangeDetector:
             _plan_key(p.isp_id, p.normalized_name, p.download_mbps)
             for p in scraped_plans
         }
- 
-        
+
         for scraped in scraped_plans:
             key      = _plan_key(scraped.isp_id, scraped.normalized_name, scraped.download_mbps)
             existing = existing_map.get(key)
- 
+
             if not existing:
                 new_plan = None
                 try:
                     new_plan = self._insert_plan(session, scraped)
-                    session.flush()  # get the generated ID
+                    session.flush()
                 except Exception:
                     session.rollback()
-                    # Plan already exists — fetch it
                     new_plan = session.query(Plan).filter(
                         Plan.isp_id == scraped.isp_id,
                         Plan.normalized_name == scraped.normalized_name,
                         Plan.download_mbps == scraped.download_mbps,
                     ).first()
- 
+
                 if not new_plan:
                     continue
- 
+
                 events.append(ChangeEvent(
                     isp_id=isp_id,
                     change_type=ChangeType.plan_added,
@@ -116,8 +107,7 @@ class ChangeDetector:
             else:
                 plan_events = self._diff_plan(session, existing, scraped, scrape_run_id)
                 events.extend(plan_events)
- 
-        
+
         for key, existing in existing_map.items():
             if key not in scraped_keys:
                 existing.status = "discontinued"
@@ -131,41 +121,41 @@ class ChangeDetector:
                     scrape_run_id=scrape_run_id,
                     plan_id=str(existing.id),
                 ))
- 
-        
-        # Flush all plans first before adding change logs
-try:
-    session.flush()
-except Exception:
-    session.rollback()
-    return []
 
+        # Flush all plans before adding change logs
+        try:
+            session.flush()
+        except Exception:
+            session.rollback()
+            return []
 
-valid_plan_ids = {str(p.id) for p in session.query(Plan).filter(Plan.isp_id == isp_id).all()}
-for ev in events:
-    if ev.plan_id and ev.plan_id not in valid_plan_ids:
-        continue
-        session.add(ChangeLog(
-        isp_id=ev.isp_id,
-        plan_id=ev.plan_id,
-        change_type=ev.change_type,
-        severity=ev.severity,
-        field_name=ev.field_name,
-        old_value=ev.old_value,
-        new_value=ev.new_value,
-        diff_pct=ev.diff_pct,
-        summary=ev.summary,
-        details=ev.details,
-        scrape_run_id=ev.scrape_run_id,
-    ))
+        # Get valid plan IDs to avoid FK violations
+        valid_plan_ids = {
+            str(p.id) for p in session.query(Plan).filter(Plan.isp_id == isp_id).all()
+        }
+
+        for ev in events:
+            if ev.plan_id and ev.plan_id not in valid_plan_ids:
+                continue
+            session.add(ChangeLog(
+                isp_id=ev.isp_id,
+                plan_id=ev.plan_id,
+                change_type=ev.change_type,
+                severity=ev.severity,
+                field_name=ev.field_name,
+                old_value=ev.old_value,
+                new_value=ev.new_value,
+                diff_pct=ev.diff_pct,
+                summary=ev.summary,
+                details=ev.details,
+                scrape_run_id=ev.scrape_run_id,
+            ))
 
         session.commit()
         logger.info("detection_complete", isp_id=isp_id,
                     events=len(events), run=scrape_run_id)
         return events
- 
-   
- 
+
     def _diff_plan(
         self,
         session: Session,
@@ -176,7 +166,7 @@ for ev in events:
         events: list[ChangeEvent] = []
         plan_id = str(existing.id)
         changed = False
- 
+
         price_diff_pct = ((scraped.price_monthly - float(existing.price_monthly))
                           / float(existing.price_monthly)) * 100
         if abs(price_diff_pct) > PRICE_DELTA_THRESHOLD_PCT:
@@ -202,8 +192,7 @@ for ev in events:
                 plan_id=plan_id,
             ))
             changed = True
- 
-        
+
         speed_diff = scraped.download_mbps - existing.download_mbps
         if abs(speed_diff) > SPEED_DELTA_THRESHOLD_MBPS:
             events.append(ChangeEvent(
@@ -224,13 +213,12 @@ for ev in events:
                 plan_id=plan_id,
             ))
             changed = True
- 
-        
+
         old_flags = set(existing.bundle_flags or [])
         new_flags = set(scraped.bundle_flags)
         added   = new_flags - old_flags
         removed = old_flags - new_flags
- 
+
         if added:
             events.append(ChangeEvent(
                 isp_id=existing.isp_id, change_type=ChangeType.bundle_added,
@@ -241,7 +229,7 @@ for ev in events:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
- 
+
         if removed:
             events.append(ChangeEvent(
                 isp_id=existing.isp_id, change_type=ChangeType.bundle_removed,
@@ -252,8 +240,7 @@ for ev in events:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
- 
-        
+
         fup_changed = (existing.fup_gb != scraped.fup_gb or
                        existing.is_unlimited != scraped.is_unlimited)
         if fup_changed:
@@ -270,7 +257,7 @@ for ev in events:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
- 
+
         if changed:
             self._update_plan(existing, scraped)
             session.add(PricingHistory(
@@ -282,9 +269,9 @@ for ev in events:
             ))
         else:
             existing.last_seen_at = datetime.now(timezone.utc)
- 
+
         return events
- 
+
     def _insert_plan(self, session: Session, p: NormalizedPlan) -> Plan:
         plan = Plan(
             isp_id=p.isp_id, raw_name=p.raw_name, normalized_name=p.normalized_name,
@@ -299,7 +286,7 @@ for ev in events:
         )
         session.add(plan)
         return plan
- 
+
     def _update_plan(self, plan: Plan, p: NormalizedPlan) -> None:
         plan.price_monthly = p.price_monthly
         plan.download_mbps = p.download_mbps
@@ -310,4 +297,3 @@ for ev in events:
         plan.bundle_flags  = p.bundle_flags
         plan.raw_data      = p.raw_data
         plan.last_seen_at  = datetime.now(timezone.utc)
- 

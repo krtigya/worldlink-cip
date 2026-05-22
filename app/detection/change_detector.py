@@ -1,16 +1,18 @@
-"""
-app/detection/change_detector.py
-Compares freshly-scraped normalized plans against DB state.
+"""This code blocks helps to compares freshly scraped normalized plans against DB state.
 Emits structured ChangeEvent objects and persists everything in one transaction.
 """
+from asyncio import events
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
-from app.models import Plan, PricingHistory, ChangeLog, ChangeType, SeverityLevel
+from app.db import session
+from app.models import Plan, PricingHistory, ChangeLog, ChangeType, SeverityLevel, isp_id
 from app.normalization.normalizer import NormalizedPlan
 from app.logger import get_logger
- 
+
+
+  
 logger = get_logger(__name__)
  
 PRICE_DELTA_THRESHOLD_PCT = 0.5   # ignore rounding noise below 0.5%
@@ -61,7 +63,7 @@ class ChangeDetector:
         isp_id = scraped_plans[0].isp_id
         events: list[ChangeEvent] = []
  
-        # Load existing active plans for this ISP
+        
         existing_plans: list[Plan] = (
             session.query(Plan)
             .filter(Plan.isp_id == isp_id, Plan.status.in_(["active", "promotional"]))
@@ -76,7 +78,7 @@ class ChangeDetector:
             for p in scraped_plans
         }
  
-        # Process each scraped plan
+        
         for scraped in scraped_plans:
             key      = _plan_key(scraped.isp_id, scraped.normalized_name, scraped.download_mbps)
             existing = existing_map.get(key)
@@ -115,7 +117,7 @@ class ChangeDetector:
                 plan_events = self._diff_plan(session, existing, scraped, scrape_run_id)
                 events.extend(plan_events)
  
-        # Detect removed plans
+        
         for key, existing in existing_map.items():
             if key not in scraped_keys:
                 existing.status = "discontinued"
@@ -131,21 +133,32 @@ class ChangeDetector:
                 ))
  
         
-        for ev in events:
-            session.add(ChangeLog(
-                isp_id=ev.isp_id,
-                plan_id=ev.plan_id,
-                change_type=ev.change_type,
-                severity=ev.severity,
-                field_name=ev.field_name,
-                old_value=ev.old_value,
-                new_value=ev.new_value,
-                diff_pct=ev.diff_pct,
-                summary=ev.summary,
-                details=ev.details,
-                scrape_run_id=ev.scrape_run_id,
-            ))
- 
+        # Flush all plans first before adding change logs
+try:
+    session.flush()
+except Exception:
+    session.rollback()
+    return []
+
+
+valid_plan_ids = {str(p.id) for p in session.query(Plan).filter(Plan.isp_id == isp_id).all()}
+for ev in events:
+    if ev.plan_id and ev.plan_id not in valid_plan_ids:
+        continue
+        session.add(ChangeLog(
+        isp_id=ev.isp_id,
+        plan_id=ev.plan_id,
+        change_type=ev.change_type,
+        severity=ev.severity,
+        field_name=ev.field_name,
+        old_value=ev.old_value,
+        new_value=ev.new_value,
+        diff_pct=ev.diff_pct,
+        summary=ev.summary,
+        details=ev.details,
+        scrape_run_id=ev.scrape_run_id,
+    ))
+
         session.commit()
         logger.info("detection_complete", isp_id=isp_id,
                     events=len(events), run=scrape_run_id)
@@ -164,7 +177,6 @@ class ChangeDetector:
         plan_id = str(existing.id)
         changed = False
  
-        # Price change
         price_diff_pct = ((scraped.price_monthly - float(existing.price_monthly))
                           / float(existing.price_monthly)) * 100
         if abs(price_diff_pct) > PRICE_DELTA_THRESHOLD_PCT:
@@ -191,7 +203,7 @@ class ChangeDetector:
             ))
             changed = True
  
-        # Speed change
+        
         speed_diff = scraped.download_mbps - existing.download_mbps
         if abs(speed_diff) > SPEED_DELTA_THRESHOLD_MBPS:
             events.append(ChangeEvent(
@@ -213,7 +225,7 @@ class ChangeDetector:
             ))
             changed = True
  
-        # Bundle changes
+        
         old_flags = set(existing.bundle_flags or [])
         new_flags = set(scraped.bundle_flags)
         added   = new_flags - old_flags
@@ -241,7 +253,7 @@ class ChangeDetector:
             ))
             changed = True
  
-        # FUP change
+        
         fup_changed = (existing.fup_gb != scraped.fup_gb or
                        existing.is_unlimited != scraped.is_unlimited)
         if fup_changed:

@@ -7,5 +7,8 @@ class ScraperFactory:
     def create(isp) -> BaseScraper:
         match isp.slug:
             case "worldlink": return WorldLinkScraper(isp)
-            case "vianet":    return VianetScraper(isp)
-            case _:           return ConfigDrivenScraper(isp)
+            case "vianet":    return WorldLinkScraper(isp)  # use HTTP scraper
+            case "subisu":    return WorldLinkScraper(isp)  # use HTTP scraper
+            case "dishhome":  return WorldLinkScraper(isp)  # use HTTP scraper
+            case "cgnet":     return WorldLinkScraper(isp)  # use HTTP scraper
+            case _:           return WorldLinkScraper(isp)

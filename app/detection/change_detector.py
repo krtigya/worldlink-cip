@@ -10,13 +10,13 @@ from sqlalchemy.orm import Session
 from app.models import Plan, PricingHistory, ChangeLog, ChangeType, SeverityLevel
 from app.normalization.normalizer import NormalizedPlan
 from app.logger import get_logger
-
+ 
 logger = get_logger(__name__)
-
+ 
 PRICE_DELTA_THRESHOLD_PCT = 0.5   # ignore rounding noise below 0.5%
 SPEED_DELTA_THRESHOLD_MBPS = 5    # ignore tiny speed tweaks
-
-
+ 
+ 
 @dataclass
 class ChangeEvent:
     isp_id: int
@@ -30,25 +30,25 @@ class ChangeEvent:
     old_value: Optional[object] = None
     new_value: Optional[object] = None
     diff_pct: Optional[float] = None
-
-
+ 
+ 
 def _price_severity(diff_pct: float) -> SeverityLevel:
     abs_diff = abs(diff_pct)
     if abs_diff >= 30: return SeverityLevel.critical
     if abs_diff >= 20: return SeverityLevel.high
     if abs_diff >= 10: return SeverityLevel.medium
     return SeverityLevel.low
-
-
+ 
+ 
 def _plan_key(isp_id: int, normalized_name: str, download_mbps: int) -> str:
     return f"{isp_id}:{normalized_name.lower()}:{download_mbps}"
-
-
+ 
+ 
 class ChangeDetector:
     """
     Synchronous detector — runs inside Celery task with a sync DB session.
     """
-
+ 
     def detect_and_persist(
         self,
         scraped_plans: list[NormalizedPlan],
@@ -57,10 +57,10 @@ class ChangeDetector:
     ) -> list[ChangeEvent]:
         if not scraped_plans:
             return []
-
+ 
         isp_id = scraped_plans[0].isp_id
         events: list[ChangeEvent] = []
-
+ 
         # Load existing active plans for this ISP
         existing_plans: list[Plan] = (
             session.query(Plan)
@@ -75,12 +75,12 @@ class ChangeDetector:
             _plan_key(p.isp_id, p.normalized_name, p.download_mbps)
             for p in scraped_plans
         }
-
+ 
         # Process each scraped plan
         for scraped in scraped_plans:
             key      = _plan_key(scraped.isp_id, scraped.normalized_name, scraped.download_mbps)
             existing = existing_map.get(key)
-
+ 
             if not existing:
                 new_plan = None
                 try:
@@ -94,10 +94,10 @@ class ChangeDetector:
                         Plan.normalized_name == scraped.normalized_name,
                         Plan.download_mbps == scraped.download_mbps,
                     ).first()
-
+ 
                 if not new_plan:
                     continue
-
+ 
                 events.append(ChangeEvent(
                     isp_id=isp_id,
                     change_type=ChangeType.plan_added,
@@ -114,7 +114,7 @@ class ChangeDetector:
             else:
                 plan_events = self._diff_plan(session, existing, scraped, scrape_run_id)
                 events.extend(plan_events)
-
+ 
         # Detect removed plans
         for key, existing in existing_map.items():
             if key not in scraped_keys:
@@ -129,8 +129,8 @@ class ChangeDetector:
                     scrape_run_id=scrape_run_id,
                     plan_id=str(existing.id),
                 ))
-
-        # Persist change log entries
+ 
+        
         for ev in events:
             session.add(ChangeLog(
                 isp_id=ev.isp_id,
@@ -145,14 +145,14 @@ class ChangeDetector:
                 details=ev.details,
                 scrape_run_id=ev.scrape_run_id,
             ))
-
+ 
         session.commit()
         logger.info("detection_complete", isp_id=isp_id,
                     events=len(events), run=scrape_run_id)
         return events
-
-    # -- Field-level diffing --------------------------------------------------
-
+ 
+   
+ 
     def _diff_plan(
         self,
         session: Session,
@@ -163,7 +163,7 @@ class ChangeDetector:
         events: list[ChangeEvent] = []
         plan_id = str(existing.id)
         changed = False
-
+ 
         # Price change
         price_diff_pct = ((scraped.price_monthly - float(existing.price_monthly))
                           / float(existing.price_monthly)) * 100
@@ -190,7 +190,7 @@ class ChangeDetector:
                 plan_id=plan_id,
             ))
             changed = True
-
+ 
         # Speed change
         speed_diff = scraped.download_mbps - existing.download_mbps
         if abs(speed_diff) > SPEED_DELTA_THRESHOLD_MBPS:
@@ -212,13 +212,13 @@ class ChangeDetector:
                 plan_id=plan_id,
             ))
             changed = True
-
+ 
         # Bundle changes
         old_flags = set(existing.bundle_flags or [])
         new_flags = set(scraped.bundle_flags)
         added   = new_flags - old_flags
         removed = old_flags - new_flags
-
+ 
         if added:
             events.append(ChangeEvent(
                 isp_id=existing.isp_id, change_type=ChangeType.bundle_added,
@@ -229,7 +229,7 @@ class ChangeDetector:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
-
+ 
         if removed:
             events.append(ChangeEvent(
                 isp_id=existing.isp_id, change_type=ChangeType.bundle_removed,
@@ -240,7 +240,7 @@ class ChangeDetector:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
-
+ 
         # FUP change
         fup_changed = (existing.fup_gb != scraped.fup_gb or
                        existing.is_unlimited != scraped.is_unlimited)
@@ -258,7 +258,7 @@ class ChangeDetector:
                 scrape_run_id=scrape_run_id, plan_id=plan_id,
             ))
             changed = True
-
+ 
         if changed:
             self._update_plan(existing, scraped)
             session.add(PricingHistory(
@@ -270,9 +270,9 @@ class ChangeDetector:
             ))
         else:
             existing.last_seen_at = datetime.now(timezone.utc)
-
+ 
         return events
-
+ 
     def _insert_plan(self, session: Session, p: NormalizedPlan) -> Plan:
         plan = Plan(
             isp_id=p.isp_id, raw_name=p.raw_name, normalized_name=p.normalized_name,
@@ -287,7 +287,7 @@ class ChangeDetector:
         )
         session.add(plan)
         return plan
-
+ 
     def _update_plan(self, plan: Plan, p: NormalizedPlan) -> None:
         plan.price_monthly = p.price_monthly
         plan.download_mbps = p.download_mbps
@@ -298,3 +298,4 @@ class ChangeDetector:
         plan.bundle_flags  = p.bundle_flags
         plan.raw_data      = p.raw_data
         plan.last_seen_at  = datetime.now(timezone.utc)
+ 

@@ -1,12 +1,6 @@
-"""
-app/ingestion/tasks/scrape_tasks.py
-Celery tasks for scraping, normalization, detection, and reporting.
-Each task is fully self-contained with its own DB session.
-"""
 import sys
 import asyncio
 
-# Fix for Playwright + Celery on Windows — must be set before any loop is created
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -30,7 +24,7 @@ logger = get_logger(__name__)
 
 
 def _run_async(coro):
-    """Run an async coroutine in a fresh event loop — Windows-safe."""
+   
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     loop = asyncio.new_event_loop()
@@ -44,9 +38,6 @@ def _run_async(coro):
 
 def _get_session() -> Session:
     return next(get_sync_db())
-
-
-# ── Scrape single ISP ──────────────────────────────────────────────────────
 
 @celery_app.task(
     bind=True,
@@ -73,12 +64,12 @@ def scrape_isp(self, isp_id: int) -> dict:
     logger.info("scrape_started", isp=isp.slug, run_id=run_id)
 
     try:
-        # 1. SCRAPE
+        
         scraper   = ScraperFactory.create(isp)
         raw_plans = _run_async(scraper.scrape())
         logger.info("scrape_raw_complete", isp=isp.slug, count=len(raw_plans))
 
-        # 2. NORMALIZE
+        
         normalized_plans = []
         for raw in raw_plans:
             try:
@@ -86,11 +77,10 @@ def scrape_isp(self, isp_id: int) -> dict:
             except ValueError as e:
                 logger.warning("normalization_failed", isp=isp.slug, name=raw.get("raw_name"), error=str(e))
 
-        # 3. CHANGE DETECTION
+        
         detector = ChangeDetector()
         events   = detector.detect_and_persist(normalized_plans, run_id, session)
 
-        # 4. RULES ENGINE + ALERTS
         if events:
             plan_ids = [e.plan_id for e in events if e.plan_id]
             plans_by_id = {
@@ -107,14 +97,14 @@ def scrape_isp(self, isp_id: int) -> dict:
                 _run_async(dispatcher.dispatch(alerts))
                 logger.info("alerts_dispatched", isp=isp.slug, count=len(alerts))
 
-        # 5. Re-index RAG (async, non-blocking)
+        
         try:
             rag = RagService()
             _run_async(rag.index_all_plans(session))
         except Exception as e:
             logger.warning("rag_reindex_failed", error=str(e))
 
-        # 6. Update run record
+        
         duration_ms   = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
         plans_new     = sum(1 for e in events if e.change_type.value == "plan_added")
         plans_removed = sum(1 for e in events if e.change_type.value == "plan_removed")
@@ -142,10 +132,6 @@ def scrape_isp(self, isp_id: int) -> dict:
         session.commit()
         logger.error("scrape_failed", isp=isp.slug, error=str(exc))
         raise
-
-
-# ── Scrape all ISPs ─────────────────────────────────────────────────────────
-
 @celery_app.task(name="app.ingestion.tasks.scrape_tasks.scrape_all_isps")
 def scrape_all_isps() -> dict:
     """Queue individual scrape tasks for every active ISP."""
@@ -162,7 +148,6 @@ def scrape_all_isps() -> dict:
     return {"queued": len(isps), "jobs": job_ids}
 
 
-# ── Weekly report task ──────────────────────────────────────────────────────
 
 @celery_app.task(name="app.ingestion.tasks.scrape_tasks.generate_weekly_report")
 def generate_weekly_report() -> dict:

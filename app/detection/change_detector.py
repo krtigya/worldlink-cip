@@ -1,4 +1,4 @@
-"""app/detection/change_detector.py
+"""
 Compares freshly-scraped normalized plans against DB state.
 Emits structured ChangeEvent objects and persists everything in one transaction.
 """
@@ -122,14 +122,12 @@ class ChangeDetector:
                     plan_id=str(existing.id),
                 ))
 
-        # Flush all plans before adding change logs
         try:
             session.flush()
         except Exception:
             session.rollback()
             return []
 
-        # Get valid plan IDs to avoid FK violations
         valid_plan_ids = {
             str(p.id) for p in session.query(Plan).filter(Plan.isp_id == isp_id).all()
         }

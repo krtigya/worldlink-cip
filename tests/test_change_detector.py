@@ -2,7 +2,6 @@
 Unit tests for the change detection engine.
 """
 import uuid
-import pytest
 from unittest.mock import MagicMock, patch
 from app.detection.change_detector import (
     ChangeDetector, ChangeEvent, _plan_key, _price_severity

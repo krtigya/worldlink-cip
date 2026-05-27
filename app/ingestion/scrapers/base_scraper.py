@@ -1,8 +1,4 @@
-"""
-app/ingestion/scrapers/base_scraper.py
-Playwright-based base scraper with retry logic, stealth headers,
-resource blocking, and config-driven extraction.
-"""
+
 import sys
 import asyncio
 from abc import ABC, abstractmethod
@@ -13,8 +9,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from app.config import get_settings
 from app.logger import get_logger
 
-# Fix for Playwright + Celery on Windows
-if sys.platform == "win32":
+if sys.platform.startswith("win"):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 settings = get_settings()
@@ -39,14 +34,14 @@ class BaseScraper(ABC):
         self.browser: Optional[Browser]        = None
         self.context: Optional[BrowserContext] = None
 
-    # -- Abstract contract -----------------------------------------------------
+    
 
     @abstractmethod
     async def extract_plans(self, page: Page) -> list[dict]:
         """Parse the loaded page and return list of raw plan dicts."""
         ...
 
-    # -- Public API ------------------------------------------------------------
+   
 
     async def scrape(self) -> list[dict]:
         """Main entry point — handles retry and browser lifecycle."""
@@ -66,7 +61,7 @@ class BaseScraper(ABC):
         logger.info("scrape_complete", isp=self.isp.slug, plans=len(result))
         return result
 
-    # -- Browser lifecycle -----------------------------------------------------
+   
 
     async def _launch_browser(self) -> None:
         playwright = await async_playwright().start()
@@ -106,7 +101,7 @@ class BaseScraper(ABC):
         finally:
             self.browser = self.context = None
 
-    # -- Navigation helpers ----------------------------------------------------
+    
 
     async def _navigate(self, page: Page, url: str) -> None:
         await page.goto(url, wait_until="networkidle", timeout=settings.scraper_timeout_ms)
@@ -127,7 +122,7 @@ class BaseScraper(ABC):
         }""")
         await page.wait_for_timeout(500)
 
-    # -- Core run --------------------------------------------------------------
+ 
 
     async def _execute_scrape(self) -> list[dict]:
         config = self.isp.scraper_config
@@ -141,7 +136,7 @@ class BaseScraper(ABC):
 
         plans = await self.extract_plans(page)
 
-        # Click-based pagination
+       
         if config.get("pagination_type") == "click":
             all_plans, page_num = list(plans), 1
             while page_num < 20:
@@ -157,7 +152,7 @@ class BaseScraper(ABC):
         return plans
 
 
-# -- Config-Driven Generic Scraper --------------------------------------------
+
 
 class ConfigDrivenScraper(BaseScraper):
     """

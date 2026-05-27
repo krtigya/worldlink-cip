@@ -9,7 +9,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from app.config import get_settings
 from app.logger import get_logger
 
-if sys.platform.startswith("win"):
+if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 settings = get_settings()
@@ -21,7 +21,6 @@ STEALTH_UA = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/124.0.0.0 Safari/537.36"
 )
-
 
 class BaseScraper(ABC):
     """
@@ -136,7 +135,7 @@ class BaseScraper(ABC):
 
         plans = await self.extract_plans(page)
 
-       
+      
         if config.get("pagination_type") == "click":
             all_plans, page_num = list(plans), 1
             while page_num < 20:

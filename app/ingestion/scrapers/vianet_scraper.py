@@ -1,4 +1,5 @@
 """
+app/ingestion/scrapers/vianet_scraper.py
 HTTP scraper for Vianet — static HTML table, no JS needed.
 
 Page structure (from live site):

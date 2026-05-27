@@ -1,4 +1,5 @@
 """
+app/ingestion/scrapers/dishhome_scraper.py
 Playwright scraper for DishHome — React SPA.
 
 "You need to enable JavaScript to run this app."

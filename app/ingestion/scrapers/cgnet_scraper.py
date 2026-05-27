@@ -1,5 +1,5 @@
 """
-
+app/ingestion/scrapers/cgnet_scraper.py
 HTTP scraper for CGNet — server-rendered HTML, no JS needed.
 
 Page structure (from live site):

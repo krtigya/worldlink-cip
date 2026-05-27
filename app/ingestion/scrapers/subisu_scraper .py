@@ -1,4 +1,5 @@
 """
+app/ingestion/scrapers/subisu_scraper.py
 Playwright scraper for Subisu — Vue.js SPA.
 
 The page uses {{ }} Vue templates — data is loaded via API calls.

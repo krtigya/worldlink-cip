@@ -100,7 +100,7 @@ def scrape_isp(self, isp_id: int) -> dict:
         
         try:
             rag = RagService()
-            _run_async(rag.index_all_plans(session))
+            rag.index_all_plans(session)
         except Exception as e:
             logger.warning("rag_reindex_failed", error=str(e))
 

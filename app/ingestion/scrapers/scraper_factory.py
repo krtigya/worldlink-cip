@@ -8,11 +8,11 @@ from app.ingestion.scrapers.dishhome_scraper import DishhomeScraper
 
 class ScraperFactory:
     @staticmethod
-    def create(isp) -> BaseScraper:
+    def create(isp):
         match isp.slug:
             case "worldlink": return WorldLinkScraper(isp)
-            case "vianet":    return VianetScraper(isp)
-            case "cgnet":     return CgnetScraper(isp)
-            case "subisu":    return SubisuScraper(isp)
-            case "dishhome":  return DishhomeScraper(isp)
+            case "vianet":    return VianetScraper(isp)    # httpx table parser
+            case "cgnet":     return CgnetScraper(isp)     # httpx HTML parser
+            case "subisu":    return SubisuScraper(isp)    # Playwright + API intercept
+            case "dishhome":  return DishhomeScraper(isp)  # Playwright + API intercept
             case _:           return WorldLinkScraper(isp)

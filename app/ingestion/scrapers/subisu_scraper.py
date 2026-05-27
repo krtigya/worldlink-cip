@@ -1,7 +1,10 @@
 """
-app/ingestion/scrapers/subisu_scraper.py
-Playwright scraper for Subisu — JavaScript-rendered SPA.
-Intercepts API calls first; falls back to DOM scraping.
+Playwright scraper for Subisu — Vue.js SPA.
+
+The page uses {{ }} Vue templates — data is loaded via API calls.
+We intercept the API responses to get plan data.
+Known API pattern: GET /api/package/{type}/{duration}/{router}
+                   GET /api/packages or /residential/package-data
 """
 from playwright.async_api import Page, Response
 from app.ingestion.scrapers.base_scraper import BaseScraper
@@ -9,34 +12,51 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-PLAN_URL = "https://subisu.net.np/residential"
+# Known package URLs to visit to trigger API calls
+PACKAGE_URLS = [
+    "https://subisu.net.np/residential/package/ftth/12-month/5-ghz",
+    "https://subisu.net.np/residential/package/ftth/3-month/5-ghz",
+    "https://subisu.net.np/residential/package/ftth/1-month/5-ghz",
+    "https://subisu.net.np/residential/package/renew/12-month",
+    "https://subisu.net.np/residential/package/renew/3-month",
+    "https://subisu.net.np/residential/package/renew/1-month",
+]
 
 
 class SubisuScraper(BaseScraper):
 
     async def extract_plans(self, page: Page) -> list[dict]:
         config     = self.isp.scraper_config
-        source_url = config.get("plan_list_url", PLAN_URL)
+        source_url = config.get("plan_list_url", PACKAGE_URLS[0])
         intercepted = []
+        seen_keys   = set()
 
-        # Strategy 1: Intercept XHR/fetch API responses
         async def handle_response(response: Response):
             url = response.url
-            if any(kw in url for kw in ["/api/package", "/api/plan", "/packages", "/plans"]):
+            # Subisu API pattern: /api/package or /package-data or /residential/package
+            if any(kw in url for kw in ["/api/package", "/package-data", "/api/residential", "/api/plan"]):
                 try:
-                    data  = await response.json()
+                    data = await response.json()
+                    # Subisu returns nested structure: data.packages or data.plans or flat list
                     items = (
-                        data.get("data")
-                        or data.get("packages")
+                        data.get("packages")
                         or data.get("plans")
+                        or data.get("data")
                         or (data if isinstance(data, list) else [])
                     )
                     for item in items:
+                        name  = str(item.get("title") or item.get("name") or item.get("package_title", ""))
+                        price = str(item.get("value") or item.get("price") or item.get("amount") or item.get("monthly_fee", ""))
+                        speed = str(item.get("speed") or item.get("bandwidth") or item.get("download_speed", ""))
+                        key   = f"{name}_{price}_{speed}"
+                        if key in seen_keys or not name:
+                            continue
+                        seen_keys.add(key)
                         intercepted.append({
                             "isp_id":          self.isp.id,
-                            "raw_name":        str(item.get("name") or item.get("title", "")),
-                            "raw_price":       str(item.get("price") or item.get("monthly_price") or item.get("amount", "")),
-                            "raw_speed":       str(item.get("speed") or item.get("bandwidth") or item.get("download_speed", "")),
+                            "raw_name":        name,
+                            "raw_price":       price,
+                            "raw_speed":       speed,
                             "raw_bundles":     self._extract_features(item),
                             "raw_description": str(item.get("description", "")),
                             "source_url":      source_url,
@@ -45,47 +65,21 @@ class SubisuScraper(BaseScraper):
                     pass
 
         page.on("response", handle_response)
-        await page.goto(source_url, wait_until="networkidle", timeout=60_000)
-        await page.wait_for_timeout(3_000)
+
+        # Visit each package URL to trigger the API calls
+        for pkg_url in PACKAGE_URLS:
+            try:
+                await page.goto(pkg_url, wait_until="networkidle", timeout=60_000)
+                await page.wait_for_timeout(2_000)
+                if intercepted:
+                    break  # got data, no need to visit more pages
+            except Exception as e:
+                logger.warning("subisu_page_load_failed", url=pkg_url, error=str(e))
+                continue
 
         if intercepted:
             logger.info("subisu_api_intercept_success", count=len(intercepted))
             return intercepted
-
-        # Strategy 2: DOM fallback — try common selectors used by Nepali ISP sites
-        logger.warning("subisu_api_intercept_failed_trying_dom", isp=self.isp.slug)
-
-        selector_sets = [
-            {"container": ".package-box",   "name": "h3,h2,.package-name", "price": ".price,.package-price", "speed": ".speed,.bandwidth"},
-            {"container": ".plan-card",      "name": "h3,h2",               "price": ".price",                "speed": ".speed"},
-            {"container": ".pricing-card",   "name": "h3,h2,.plan-name",    "price": ".price,.amount",        "speed": ".speed,.mbps"},
-            {"container": ".internet-plan",  "name": "h3,h2",               "price": ".price",                "speed": ".speed"},
-            {"container": "[class*='plan']", "name": "h3,h2",               "price": "[class*='price']",      "speed": "[class*='speed']"},
-        ]
-
-        for sel in selector_sets:
-            try:
-                await page.wait_for_selector(sel["container"], timeout=5_000)
-            except Exception:
-                continue
-
-            plans = await page.evaluate(
-                """([sel, isp_id, source_url]) => {
-                    return Array.from(document.querySelectorAll(sel.container)).map(el => ({
-                        isp_id,
-                        raw_name:    el.querySelector(sel.name)?.textContent?.trim()  ?? "",
-                        raw_price:   el.querySelector(sel.price)?.textContent?.trim() ?? "",
-                        raw_speed:   el.querySelector(sel.speed)?.textContent?.trim() ?? "",
-                        raw_bundles: Array.from(el.querySelectorAll("li, .feature, .addon"))
-                                        .map(b => b.textContent?.trim()).filter(Boolean),
-                        source_url,
-                    })).filter(p => p.raw_name && p.raw_price);
-                }""",
-                [sel, self.isp.id, source_url]
-            )
-            if plans:
-                logger.info("subisu_dom_scrape_success", selector=sel["container"], count=len(plans))
-                return plans
 
         logger.warning("subisu_no_plans_found", url=source_url)
         return []

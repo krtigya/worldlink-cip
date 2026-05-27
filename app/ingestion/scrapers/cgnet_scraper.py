@@ -1,4 +1,8 @@
-"""Page structure (from live site):
+"""
+
+HTTP scraper for CGNet — server-rendered HTML, no JS needed.
+
+Page structure (from live site):
   Each plan block contains:
     h2: price  e.g. "Rs 3,345/-"
     h2: speed  e.g. "350 Mbps"

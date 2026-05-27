@@ -1,88 +1,127 @@
 """
-VianetScraper — intercepts Vianet's internal XHR API for plan data.
-More reliable than DOM scraping for JavaScript-heavy SPAs.
+HTTP scraper for Vianet — static HTML table, no JS needed.
+
+Page structure (from live site):
+  Plans are in two <table> blocks:
+    1. "Renewal Rate" table  — rows: 1 Month / 3 Months / 12 Months
+    2. "New Connection" table — rows: 3 Months / 12 Months
+  Columns: Plus (100 Mbps) | Pro (200 Mbps) | Ultra (300 Mbps)
 """
-import asyncio
-import json
-from playwright.async_api import Page, Response
-from app.ingestion.scrapers.base_scraper import BaseScraper
+import re
+import httpx
+from bs4 import BeautifulSoup
+from datetime import datetime
 from app.logger import get_logger
 
 logger = get_logger(__name__)
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
 
-class VianetScraper(BaseScraper):
+PLAN_URL = "https://www.vianet.com.np/superhitinternetpack/"
 
-    async def extract_plans(self, page: Page) -> list[dict]:
-        source_url     = self.isp.scraper_config["plan_list_url"]
-        intercepted    = []
+# Column → (plan name, speed)
+COLUMNS = {
+    "Plus":  ("Vianet Plus",  "100 Mbps"),
+    "Pro":   ("Vianet Pro",   "200 Mbps"),
+    "Ultra": ("Vianet Ultra", "300 Mbps"),
+}
 
-        # Strategy 1: Intercept API response
-        async def handle_response(response: Response):
-            url = response.url
-            if "/api/packages" in url or "/api/plans" in url:
-                try:
-                    data  = await response.json()
-                    items = data.get("data") or data.get("packages") or (data if isinstance(data, list) else [])
-                    for item in items:
-                        intercepted.append({
-                            "isp_id":          self.isp.id,
-                            "raw_name":        str(item.get("name") or item.get("title", "")),
-                            "raw_price":       str(item.get("price") or item.get("monthly_price") or item.get("amount", "")),
-                            "raw_speed":       str(item.get("speed") or item.get("bandwidth") or item.get("download_speed", "")),
-                            "raw_bundles":     self._extract_bundles_from_api(item),
-                            "raw_description": str(item.get("description", "")),
-                            "source_url":      source_url,
-                        })
-                except Exception:
-                    pass
 
-        page.on("response", handle_response)
-        await page.goto(source_url, wait_until="networkidle", timeout=60_000)
-        await page.wait_for_timeout(2_000)
+class VianetScraper:
+    def __init__(self, isp):
+        self.isp = isp
 
-        if intercepted:
-            return intercepted
+    async def scrape(self) -> list[dict]:
+        config = self.isp.scraper_config
+        url    = config.get("plan_list_url", PLAN_URL)
 
-        # Strategy 2: Fallback DOM scraping
-        logger.warning("vianet_api_intercept_failed_falling_back_to_dom", isp=self.isp.slug)
-        return await self._dom_fallback(page, source_url)
+        logger.info("worldlink_http_scrape_start", url=url)
 
-    async def _dom_fallback(self, page: Page, source_url: str) -> list[dict]:
-        selector_sets = [
-            {"container": ".plan-card",    "name": "h3",            "price": ".price",        "speed": ".speed"},
-            {"container": ".package-card", "name": ".package-name", "price": ".package-price", "speed": ".speed-tag"},
-        ]
-        for sel in selector_sets:
-            try:
-                await page.wait_for_selector(sel["container"], timeout=5_000)
-            except Exception:
+        try:
+            async with httpx.AsyncClient(headers=HEADERS, timeout=30, follow_redirects=True) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                html = response.text
+        except Exception as e:
+            logger.error("vianet_fetch_failed", error=str(e))
+            return []
+
+        soup  = BeautifulSoup(html, "lxml")
+        plans = self._parse_plans(soup, url)
+
+        if not plans:
+            logger.warning("worldlink_no_plans_found", selector="table")
+        else:
+            logger.info("worldlink_scrape_complete", plans=len(plans))
+
+        return plans
+
+    def _parse_plans(self, soup: BeautifulSoup, url: str) -> list[dict]:
+        plans = []
+        tables = soup.find_all("table")
+
+        for table in tables:
+            rows = table.find_all("tr")
+            if len(rows) < 3:
                 continue
 
-            plans = await page.evaluate(
-                """([sel, isp_id, source_url]) => {
-                    return Array.from(document.querySelectorAll(sel.container)).map(el => ({
-                        isp_id,
-                        raw_name:    el.querySelector(sel.name)?.textContent?.trim()  ?? "",
-                        raw_price:   el.querySelector(sel.price)?.textContent?.trim() ?? "",
-                        raw_speed:   el.querySelector(sel.speed)?.textContent?.trim() ?? "",
-                        raw_bundles: Array.from(el.querySelectorAll("li,.feature"))
-                                        .map(b => b.textContent?.trim()).filter(Boolean),
-                        source_url,
-                    })).filter(p => p.raw_name);
-                }""",
-                [sel, self.isp.id, source_url]
-            )
-            if plans:
-                return plans
+            # Detect header row — find column names (Plus / Pro / Ultra)
+            header_row = rows[0]
+            headers    = [td.get_text(strip=True) for td in header_row.find_all(["th", "td"])]
 
-        return []
+            # Find which columns map to plan names
+            col_map = {}  # col_index → (plan_name, speed)
+            for idx, h in enumerate(headers):
+                for key, (name, speed) in COLUMNS.items():
+                    if key in h:
+                        col_map[idx] = (name, speed)
 
-    def _extract_bundles_from_api(self, item: dict) -> list[str]:
-        features = item.get("features") or item.get("addons") or item.get("includes") or []
-        if isinstance(features, list):
-            return [
-                f if isinstance(f, str) else str(f.get("name") or f.get("title", ""))
-                for f in features
-            ]
-        return []
+            if not col_map:
+                continue
+
+            # Detect table type from heading text above or caption
+            table_type = "renewal"
+            prev = table.find_previous(["h2", "h3", "h4", "p", "strong"])
+            if prev and "new connection" in prev.get_text(strip=True).lower():
+                table_type = "new_connection"
+
+            # Parse data rows (skip header rows that contain speed info)
+            for row in rows[1:]:
+                cells = row.find_all(["th", "td"])
+                if not cells:
+                    continue
+
+                row_label = cells[0].get_text(strip=True)  # e.g. "1 Month", "3 Months"
+                if not re.match(r"\d+\s*Month", row_label, re.I):
+                    continue  # skip speed rows, button rows, etc.
+
+                for col_idx, (plan_name, speed) in col_map.items():
+                    if col_idx >= len(cells):
+                        continue
+
+                    price_text = cells[col_idx].get_text(strip=True)
+                    # Skip empty or non-price cells
+                    if not re.search(r"Rs[\s.,\d]+", price_text):
+                        continue
+
+                    raw_name = f"{plan_name} {row_label} ({table_type.replace('_', ' ').title()})"
+                    plans.append({
+                        "isp_id":          self.isp.id,
+                        "raw_name":        raw_name,
+                        "raw_price":       price_text,
+                        "raw_speed":       speed,
+                        "raw_bundles":     [],
+                        "raw_description": f"Vianet {plan_name} {speed} - {row_label} {table_type}",
+                        "source_url":      url,
+                        "scraped_at":      datetime.utcnow().isoformat(),
+                    })
+
+        return plans

@@ -1,5 +1,4 @@
 """
-app/ingestion/scrapers/worldlink_scraper.py
 Simple HTTP scraper for WorldLink — uses httpx + BeautifulSoup
 instead of Playwright since WorldLink has standard HTML.
 """

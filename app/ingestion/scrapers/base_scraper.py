@@ -151,8 +151,6 @@ class BaseScraper(ABC):
         return plans
 
 
-
-
 class ConfigDrivenScraper(BaseScraper):
     """
     Uses CSS selectors stored in isp.scraper_config to extract plans.

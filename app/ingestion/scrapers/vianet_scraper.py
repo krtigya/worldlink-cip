@@ -44,7 +44,7 @@ class VianetScraper:
         config = self.isp.scraper_config
         url    = config.get("plan_list_url", PLAN_URL)
 
-        logger.info("worldlink_http_scrape_start", url=url)
+        logger.info("vianet_http_scrape_start", url=url)
 
         try:
             async with httpx.AsyncClient(headers=HEADERS, timeout=30, follow_redirects=True) as client:
@@ -59,9 +59,9 @@ class VianetScraper:
         plans = self._parse_plans(soup, url)
 
         if not plans:
-            logger.warning("worldlink_no_plans_found", selector="table")
+            logger.warning("vianet_no_plans_found", url=url)
         else:
-            logger.info("worldlink_scrape_complete", plans=len(plans))
+            logger.info("vianet_scrape_complete", plans=len(plans))
 
         return plans
 
@@ -71,7 +71,7 @@ class VianetScraper:
 
         for table in tables:
             rows = table.find_all("tr")
-            if len(rows) < 3:
+            if len(rows) < 2:
                 continue
 
             # Detect header row — find column names (Plus / Pro / Ultra)
@@ -82,7 +82,7 @@ class VianetScraper:
             col_map = {}  # col_index → (plan_name, speed)
             for idx, h in enumerate(headers):
                 for key, (name, speed) in COLUMNS.items():
-                    if key in h:
+                    if key.lower() in h.lower():
                         col_map[idx] = (name, speed)
 
             if not col_map:
@@ -90,11 +90,11 @@ class VianetScraper:
 
             # Detect table type from heading text above or caption
             table_type = "renewal"
-            prev = table.find_previous(["h2", "h3", "h4", "p", "strong"])
+            prev = table.find_previous(["h2", "h3", "h4", "p", "strong", "div"])
             if prev and "new connection" in prev.get_text(strip=True).lower():
                 table_type = "new_connection"
 
-            # Parse data rows (skip header rows that contain speed info)
+            # Parse data rows
             for row in rows[1:]:
                 cells = row.find_all(["th", "td"])
                 if not cells:
@@ -109,8 +109,15 @@ class VianetScraper:
                         continue
 
                     price_text = cells[col_idx].get_text(strip=True)
-                    # Skip empty or non-price cells
-                    if not re.search(r"Rs[\s.,\d]+", price_text):
+
+                    # Accept prices in multiple formats:
+                    # "Rs 1,500", "Rs. 1500", "NPR 1500", "1500", "1,500"
+                    has_price = (
+                        re.search(r"Rs\.?\s*[\d,]+", price_text, re.I)
+                        or re.search(r"NPR\s*[\d,]+", price_text, re.I)
+                        or re.search(r"^\d[\d,]+$", price_text.strip())
+                    )
+                    if not has_price:
                         continue
 
                     raw_name = f"{plan_name} {row_label} ({table_type.replace('_', ' ').title()})"

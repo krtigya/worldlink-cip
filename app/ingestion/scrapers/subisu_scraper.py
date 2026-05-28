@@ -1,12 +1,4 @@
-"""
-app/ingestion/scrapers/subisu_scraper.py
-Playwright scraper for Subisu — Vue.js SPA.
 
-The page uses {{ }} Vue templates — data is loaded via API calls.
-We intercept the API responses to get plan data.
-Known API pattern: GET /api/package/{type}/{duration}/{router}
-                   GET /api/packages or /residential/package-data
-"""
 from playwright.async_api import Page, Response
 from app.ingestion.scrapers.base_scraper import BaseScraper
 from app.logger import get_logger
@@ -34,7 +26,7 @@ class SubisuScraper(BaseScraper):
 
         async def handle_response(response: Response):
             url = response.url
-            # Subisu API pattern: /api/package or /package-data or /residential/package
+            
             if any(kw in url for kw in ["/api/package", "/package-data", "/api/residential", "/api/plan"]):
                 try:
                     data = await response.json()
@@ -67,7 +59,7 @@ class SubisuScraper(BaseScraper):
 
         page.on("response", handle_response)
 
-        # Visit each package URL to trigger the API calls
+
         for pkg_url in PACKAGE_URLS:
             try:
                 await page.goto(pkg_url, wait_until="networkidle", timeout=60_000)

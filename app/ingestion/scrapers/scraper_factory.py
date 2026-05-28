@@ -11,8 +11,8 @@ class ScraperFactory:
     def create(isp):
         match isp.slug:
             case "worldlink": return WorldLinkScraper(isp)
-            case "vianet":    return VianetScraper(isp)    # httpx table parser
-            case "cgnet":     return CgnetScraper(isp)     # httpx HTML parser
-            case "subisu":    return SubisuScraper(isp)    # Playwright + API intercept
-            case "dishhome":  return DishhomeScraper(isp)  # Playwright + API intercept
+            case "vianet":    return VianetScraper(isp)
+            case "cgnet":     return CgnetScraper(isp)
+            case "subisu":    return SubisuScraper(isp)
+            case "dishhome":  return DishhomeScraper(isp)
             case _:           return WorldLinkScraper(isp)

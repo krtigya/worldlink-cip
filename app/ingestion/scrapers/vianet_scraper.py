@@ -26,7 +26,8 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.5",
 }
 
-PLAN_URL = "https://www.vianet.com.np/superhitinternetpack/"
+URL = "https://www.vianet.com.np/vianetwifi6/"
+
 
 # Column → (plan name, speed)
 COLUMNS = {

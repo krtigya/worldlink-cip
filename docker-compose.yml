@@ -1,17 +1,16 @@
 version: "3.9"
 
 services:
-
   postgres:
     image: postgres:15-alpine
     container_name: cip_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB:       worldlink_cip
-      POSTGRES_USER:     cip_user
+      POSTGRES_DB: worldlink_cip
+      POSTGRES_USER: cip_user
       POSTGRES_PASSWORD: cip_password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -44,7 +43,7 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,16 +55,20 @@ services:
     container_name: cip_app
     restart: unless-stopped
     depends_on:
-      postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-      qdrant:   { condition: service_healthy }
-    env_file: .env
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      DATABASE_URL:      postgresql+asyncpg://cip_user:cip_password@postgres:5432/worldlink_cip
+      DATABASE_URL: postgresql+asyncpg://cip_user:cip_password@postgres:5432/worldlink_cip
       DATABASE_URL_SYNC: postgresql://cip_user:cip_password@postgres:5432/worldlink_cip
-      REDIS_URL:         redis://redis:6379/0
-      QDRANT_URL:        http://qdrant:6333
-      APP_ENV:           production
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
+      APP_ENV: production
     ports:
       - "8000:8000"
     volumes:
@@ -76,17 +79,26 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: cip_worker
-    command: celery -A app.ingestion.tasks.celery_app worker --loglevel=info --queues=scrape,reports -c 3
+    command: >
+      celery -A app.ingestion.tasks.celery_app worker
+      --loglevel=info
+      --queues=scrape,reports
+      -c 3
     restart: unless-stopped
     depends_on:
-      postgres: { condition: service_healthy }
-      redis:    { condition: service_healthy }
-    env_file: .env
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
-      DATABASE_URL:      postgresql+asyncpg://cip_user:cip_password@postgres:5432/worldlink_cip
+      DATABASE_URL: postgresql+asyncpg://cip_user:cip_password@postgres:5432/worldlink_cip
       DATABASE_URL_SYNC: postgresql://cip_user:cip_password@postgres:5432/worldlink_cip
-      REDIS_URL:         redis://redis:6379/0
-      QDRANT_URL:        http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
 
   beat:
     build:
@@ -96,8 +108,10 @@ services:
     command: celery -A app.ingestion.tasks.celery_app beat --loglevel=info
     restart: unless-stopped
     depends_on:
-      - redis
-    env_file: .env
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
     environment:
       REDIS_URL: redis://redis:6379/0
 
@@ -107,7 +121,8 @@ services:
     command: celery flower --broker=redis://redis:6379/0 --port=5555
     restart: unless-stopped
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     ports:
       - "5555:5555"
 

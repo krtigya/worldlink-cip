@@ -166,6 +166,8 @@ def generate_weekly_report() -> dict:
     from datetime import date, timedelta
     session    = _get_session()
     today      = date.today()
+
+
     week_start = today - timedelta(days=today.weekday())
 
     logger.info("report_generation_started", week=str(week_start))

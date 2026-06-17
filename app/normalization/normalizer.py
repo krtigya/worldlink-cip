@@ -126,8 +126,6 @@ def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[
     return None, False
 
 
-# ── Plan type detection ─────────────────────────────────────────────────────
-
 def detect_plan_type(name: str) -> str:
     n = name.lower()
     if re.search(r"enterprise|corporate|data\s*center", n): return "enterprise"

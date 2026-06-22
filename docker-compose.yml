@@ -5,12 +5,12 @@ services:
     image: postgres:15-alpine
     container_name: cip_postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: worldlink_cip
-      POSTGRES_USER: cip_user
-      POSTGRES_PASSWORD: cip_password
     ports:
-      - "5433:5432"
+      - "5435:5432"
+    environment:
+      - POSTGRES_USER=cip_user
+      - POSTGRES_PASSWORD=cip_password
+      - POSTGRES_DB=worldlink_cip
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -42,11 +42,8 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    
+   
 
   app:
     build:
@@ -60,7 +57,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -91,7 +88,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     env_file:
       - .env
     environment:

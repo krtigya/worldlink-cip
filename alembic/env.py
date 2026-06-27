@@ -8,7 +8,7 @@ from app.models import *  # noqa: F401,F403 — ensure all models are imported
 
 
 config  = context.config
-fileConfig(config.config_file_name)
+# fileConfig(config.config_file_name)
 target_metadata = Base.metadata
 import os
 

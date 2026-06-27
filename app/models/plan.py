@@ -27,7 +27,7 @@ class PlanStatus(str, enum.Enum):
 
 class Plan(Base):
     __tablename__ = "plans"
-    __table_args__ = (UniqueConstraint("isp_id", "normalized_name", "download_mbps", name="uq_plan"),)
+    __table_args__ = (UniqueConstraint("isp_id", "normalized_name", name="uq_plan"),)
 
     id:              Mapped[uuid.UUID]       = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     isp_id:          Mapped[int]             = mapped_column(ForeignKey("isps.id", ondelete="CASCADE"), nullable=False, index=True)

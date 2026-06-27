@@ -8,13 +8,13 @@ from sqlalchemy.orm import Session
 from app.ingestion.tasks.celery_app import celery_app
 from app.ingestion.scrapers.scraper_factory import ScraperFactory
 from app.normalization.normalizer import normalize_plan
-from app.detection.change_detector import ChangeDetector
+from app.detection.change_detector import diff_plans, fetch_existing_plans, persist_changes, ChangeDetector
 from app.intelligence.rules_engine import RulesEngine
 from app.alerts.alert_dispatcher import AlertDispatcher
 from app.rag.rag_service import RagService
 from app.reports.report_generator import ReportGenerator
 from app.models import Isp, Plan, ScrapeRun
-from app.db.session import get_sync_db
+from app.db.session import AsyncSessionLocal, get_sync_db
 from app.logger import get_logger
 
 logger = get_logger(__name__)
@@ -22,26 +22,21 @@ logger = get_logger(__name__)
 
 def _run_async(coro):
     """
-    Run an async coroutine from sync Celery task.
+    Run an async coroutine from a sync Celery task.
 
     On Windows, Playwright requires ProactorEventLoop to launch subprocesses.
-    WindowsSelectorEventLoopPolicy (Celery's default pool wrapper behavior on Windows) 
-    does NOT support this, so we explicitly set the loop policy and instantiate a 
-    clean ProactorEventLoop here.
+    WindowsSelectorEventLoopPolicy (Celery's default on Windows) does NOT support
+    this, so we explicitly set the policy before creating the loop.
     """
     if sys.platform == "win32":
-        # Force the loop policy to use ProactorEventLoop for subprocess compatibility
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        loop = asyncio.new_event_loop()
-    else:
-        loop = asyncio.new_event_loop()
 
+    loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         return loop.run_until_complete(coro)
     finally:
         try:
-            # Let remaining asynchronous teardown background tasks run cleanly
             if hasattr(loop, "shutdown_asyncgens"):
                 loop.run_until_complete(loop.shutdown_asyncgens())
         except Exception:
@@ -51,6 +46,7 @@ def _run_async(coro):
 
 
 def _get_session() -> Session:
+    """Return a synchronous DB session from the sync session factory."""
     return next(get_sync_db())
 
 
@@ -63,7 +59,24 @@ def _get_session() -> Session:
     retry_backoff=True,
 )
 def scrape_isp(self, isp_id: int) -> dict:
-    """Full scrape pipeline for a single ISP."""
+    """
+    Full scrape pipeline for a single ISP.
+
+    Steps:
+      1. Create a ScrapeRun record (status=running)
+      2. Scrape raw plans via ScraperFactory
+      3. Normalize each raw plan into a standard shape
+      4. Run ChangeDetector to diff against existing DB plans
+      5. Evaluate RulesEngine and dispatch any alerts
+      6. Re-index Qdrant via RagService
+      7. Update ScrapeRun with final counts and status
+
+    Args:
+        isp_id: Primary key of the ISP row to scrape.
+
+    Returns:
+        Dict with keys: isp (slug), plans (count), changes (count), run_id.
+    """
     session    = _get_session()
     run_id     = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc)
@@ -146,7 +159,15 @@ def scrape_isp(self, isp_id: int) -> dict:
 
 @celery_app.task(name="app.ingestion.tasks.scrape_tasks.scrape_all_isps")
 def scrape_all_isps() -> dict:
-    """Queue individual scrape tasks for every active ISP."""
+    """
+    Queue individual scrape tasks for every active ISP.
+
+    Staggers each task by 120 seconds (countdown=i*120) so all four
+    scrapers don't hammer the DB and target sites simultaneously.
+
+    Returns:
+        Dict with keys: queued (count), jobs (list of {isp, job_id}).
+    """
     session = _get_session()
     isps    = session.query(Isp).filter_by(status="active").all()
 
@@ -162,12 +183,18 @@ def scrape_all_isps() -> dict:
 
 @celery_app.task(name="app.ingestion.tasks.scrape_tasks.generate_weekly_report")
 def generate_weekly_report() -> dict:
-    """Generate and persist the weekly competitive intelligence report."""
+    """
+    Generate and persist the weekly competitive intelligence report.
+
+    Computes the Monday of the current week as the report period start,
+    then delegates to ReportGenerator which queries change_logs for that week.
+
+    Returns:
+        Dict with keys: week (ISO date string), summary (first 100 chars).
+    """
     from datetime import date, timedelta
     session    = _get_session()
     today      = date.today()
-
-
     week_start = today - timedelta(days=today.weekday())
 
     logger.info("report_generation_started", week=str(week_start))
@@ -175,3 +202,101 @@ def generate_weekly_report() -> dict:
     report    = _run_async(generator.generate(week_start))
     logger.info("report_generation_complete", week=str(week_start))
     return {"week": str(week_start), "summary": report.get("summary", "")[:100]}
+
+
+def _isp_id_by_slug(slug: str) -> int:
+    """
+    Resolve an ISP's primary key from its slug.
+
+    Used by named shortcut tasks so isp_ids never need to be hardcoded
+    as constants — slugs are stable across environments, integer ids are not.
+
+    Args:
+        slug: ISP slug string e.g. 'worldlink', 'vianet', 'cgnet', 'dishhome'.
+
+    Raises:
+        ValueError: If no active ISP row exists with the given slug.
+    """
+    session = _get_session()
+    isp = session.query(Isp).filter_by(slug=slug).first()
+    if not isp:
+        raise ValueError(f"No ISP found with slug '{slug}'")
+    return isp.id
+
+
+@celery_app.task(
+    bind=True,
+    name="app.ingestion.tasks.scrape_tasks.scrape_worldlink_task",
+    max_retries=2,
+    default_retry_delay=300,
+)
+def scrape_worldlink_task(self):
+    """
+    Named shortcut task for scraping WorldLink.
+
+    Resolves WorldLink's isp_id by slug and enqueues scrape_isp as a
+    new Celery task via .apply_async(), keeping execution fully async
+    and isolated from this task's worker process.
+    """
+    try:
+        return scrape_isp.apply_async(args=[_isp_id_by_slug("worldlink")])
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.ingestion.tasks.scrape_tasks.scrape_vianet_task",
+    max_retries=2,
+    default_retry_delay=300,
+)
+def scrape_vianet_task(self):
+    """
+    Named shortcut task for scraping Vianet.
+
+    Resolves Vianet's isp_id by slug and enqueues scrape_isp as a
+    new Celery task via .apply_async().
+    """
+    try:
+        return scrape_isp.apply_async(args=[_isp_id_by_slug("vianet")])
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.ingestion.tasks.scrape_tasks.scrape_cgnet_task",
+    max_retries=2,
+    default_retry_delay=300,
+)
+def scrape_cgnet_task(self):
+    """
+    Named shortcut task for scraping CGNet.
+
+    Resolves CGNet's isp_id by slug and enqueues scrape_isp as a
+    new Celery task via .apply_async().
+    """
+    try:
+        return scrape_isp.apply_async(args=[_isp_id_by_slug("cgnet")])
+    except Exception as exc:
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.ingestion.tasks.scrape_tasks.scrape_dishhome_task",
+    max_retries=2,
+    default_retry_delay=300,
+)
+def scrape_dishhome_task(self):
+    """
+    Named shortcut task for scraping DishHome.
+
+    Resolves DishHome's isp_id by slug and enqueues scrape_isp as a
+    new Celery task via .apply_async(). DishHome uses Playwright so
+    may take longer — default_retry_delay is 300s accordingly.
+    """
+    try:
+        return scrape_isp.apply_async(args=[_isp_id_by_slug("dishhome")])
+    except Exception as exc:
+        raise self.retry(exc=exc)

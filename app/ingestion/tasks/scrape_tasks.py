@@ -8,14 +8,14 @@ from sqlalchemy.orm import Session
 from app.ingestion.tasks.celery_app import celery_app
 from app.ingestion.scrapers.scraper_factory import ScraperFactory
 from app.normalization.normalizer import normalize_plan
-from app.detection.change_detector import diff_plans, fetch_existing_plans, persist_changes, ChangeDetector
+from app.detection.change_detector import ChangeDetector
 from app.intelligence.rules_engine import RulesEngine
 from app.alerts.alert_dispatcher import AlertDispatcher
 from app.rag.rag_service import RagService
 from app.reports.report_generator import ReportGenerator
 from app.models import Isp, Plan, ScrapeRun
-from app.db.session import AsyncSessionLocal, get_sync_db
 from app.logger import get_logger
+from app.db.session import get_sync_db    
 
 logger = get_logger(__name__)
 

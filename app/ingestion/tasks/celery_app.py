@@ -1,6 +1,5 @@
 """
-app/ingestion/tasks/celery_app.py
-Celery application factory with Redis broker + backend.
+Here i refactor code for Celery application factory with Redis broker + backend.
 """
 from celery import Celery
 from celery.schedules import crontab
@@ -29,12 +28,29 @@ celery_app.conf.update(
         "app.reports.*": {"queue": "reports"},
     },
     beat_schedule={
-        # Scrape all ISPs every 6 hours
+        # ── Full sweep every 6 hours ──────────────────────────
         "scrape-all-isps": {
             "task": "app.ingestion.tasks.scrape_tasks.scrape_all_isps",
             "schedule": crontab(minute=0, hour="*/6"),
         },
-        # Weekly report every Monday 8am NPT (2:15 UTC)
+        # ── Per-ISP named tasks (staggered by 5 min) ─────────
+        "scrape-worldlink": {
+            "task": "app.ingestion.tasks.scrape_tasks.scrape_worldlink_task",
+            "schedule": crontab(minute=0, hour="*/12"),
+        },
+        "scrape-vianet": {
+            "task": "app.ingestion.tasks.scrape_tasks.scrape_vianet_task",
+            "schedule": crontab(minute=5, hour="*/12"),
+        },
+        "scrape-cgnet": {
+            "task": "app.ingestion.tasks.scrape_tasks.scrape_cgnet_task",
+            "schedule": crontab(minute=10, hour="*/12"),
+        },
+        "scrape-dishhome": {
+            "task": "app.ingestion.tasks.scrape_tasks.scrape_dishhome_task",
+            "schedule": crontab(minute=15, hour="*/12"),
+        },
+        # ── Weekly report every Monday 8am NPT (2:15 UTC) ────
         "weekly-report": {
             "task": "app.ingestion.tasks.scrape_tasks.generate_weekly_report",
             "schedule": crontab(minute=15, hour=2, day_of_week=1),

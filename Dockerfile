@@ -2,11 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System deps for Playwright + Postgres
 RUN apt-get update && apt-get install -y \
     curl wget gnupg libpq-dev gcc \
     libnss3 libatk-bridge2.0-0 libdrm2 libxkbcommon0 \
     libgbm1 libasound2 libxshmfence1 libxrandr2 \
+    libcups2 libxcomposite1 libxdamage1 libxfixes3 \
+    libpango-1.0-0 libcairo2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps

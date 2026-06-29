@@ -1,15 +1,3 @@
-"""
-app/ingestion/scrapers/cgnet_scraper.py
-HTTP scraper for CGNet — server-rendered HTML, no JS needed.
-
-Page structure (from live site):
-  Each plan block contains:
-    h2: price  e.g. "Rs 3,345/-"
-    h2: speed  e.g. "350 Mbps"
-    h2: plan name (Rockstar / Popular / Sprinter)
-    p:  "For X months"
-    li: feature items
-"""
 import re
 import httpx
 from bs4 import BeautifulSoup
@@ -18,57 +6,86 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-HEADERS = { ... }
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
 
-PLAN_URL   = "https://cgnet.com.np/wifi-six"  
+PLAN_URL = "https://cgnet.com.np/wifi-six"
 
-PLAN_NAMES = {"250 Mbps", "350 Mbps", "400 Mbps"}  # speeds are the h3 headings
 
-def _parse_plans(self, soup: BeautifulSoup, url: str) -> list[dict]:
-    plans = []
+class CgnetScraper:
+    def __init__(self, isp):
+        self.isp = isp
 
-    # Plans are under the #packages section
-    # Each plan card has: h3 (speed), p (price like "Rs. 13,499 / year"), ul (features)
-    packages_section = soup.find(id="packages") or soup.find("section", string=re.compile("packages", re.I))
+    async def scrape(self) -> list[dict]:
+        config = self.isp.scraper_config
+        url    = config.get("plan_list_url", PLAN_URL)
 
-    # Fallback: find all h3 tags that look like speeds
-    speed_headings = soup.find_all("h3", string=re.compile(r"\d+\s*Mbps", re.I))
+        logger.info("cgnet_http_scrape_start", url=url)
 
-    for h3 in speed_headings:
-        speed_text = h3.get_text(strip=True)
+        try:
+            async with httpx.AsyncClient(headers=HEADERS, timeout=30, follow_redirects=True) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                html = response.text
+        except Exception as e:
+            logger.error("cgnet_fetch_failed", error=str(e))
+            return []
 
-        # Find price — look for "Rs. X,XXX / year" in nearby siblings/parent
-        price_text = ""
-        price_raw  = ""
-        for tag in h3.find_next_siblings():
-            t = tag.get_text(strip=True)
-            m = re.search(r"Rs\.\s*([\d,]+)\s*/\s*year", t, re.I)
-            if m:
-                price_raw  = t
-                price_text = m.group(1).replace(",", "")
-                break
-            if tag.name in ("h2", "h3"):
-                break
+        soup  = BeautifulSoup(html, "lxml")
+        plans = self._parse_plans(soup, url)
 
-        # Find features
-        features = []
-        for tag in h3.find_next_siblings():
-            if tag.name in ("ul", "ol"):
-                features = [li.get_text(strip=True) for li in tag.find_all("li")]
-                break
-            if tag.name in ("h2", "h3"):
-                break
+        if not plans:
+            logger.warning("cgnet_no_plans_found", url=url)
+        else:
+            logger.info("cgnet_scrape_complete", plans=len(plans))
 
-        if speed_text and price_text:
-            plans.append({
-                "isp_id":          self.isp.id,
-                "raw_name":        f"CGNet WiFi6 {speed_text} 12M",
-                "raw_price":       price_raw,
-                "raw_speed":       speed_text,
-                "raw_bundles":     features,
-                "raw_description": f"CGNet Wi-Fi 6 {speed_text} annual plan. No FUP. VAT included.",
-                "source_url":      url,
-                "scraped_at":      datetime.utcnow().isoformat(),
-            })
+        return plans
 
-    return plans
+    def _parse_plans(self, soup: BeautifulSoup, url: str) -> list[dict]:
+        plans = []
+
+        speed_headings = soup.find_all("h3", string=re.compile(r"\d+\s*Mbps", re.I))
+
+        for h3 in speed_headings:
+            speed_text = h3.get_text(strip=True)
+            price_text = ""
+            price_raw  = ""
+
+            for tag in h3.find_next_siblings():
+                t = tag.get_text(strip=True)
+                m = re.search(r"Rs\.\s*([\d,]+)\s*/\s*year", t, re.I)
+                if m:
+                    price_raw  = t
+                    price_text = m.group(1).replace(",", "")
+                    break
+                if tag.name in ("h2", "h3"):
+                    break
+
+            features = []
+            for tag in h3.find_next_siblings():
+                if tag.name in ("ul", "ol"):
+                    features = [li.get_text(strip=True) for li in tag.find_all("li")]
+                    break
+                if tag.name in ("h2", "h3"):
+                    break
+
+            if speed_text and price_text:
+                plans.append({
+                    "isp_id":          self.isp.id,
+                    "raw_name":        f"CGNet WiFi6 {speed_text} 12M",
+                    "raw_price":       price_raw,
+                    "raw_speed":       speed_text,
+                    "raw_bundles":     features,
+                    "raw_description": f"CGNet Wi-Fi 6 {speed_text} annual plan. No FUP. VAT included.",
+                    "source_url":      url,
+                    "scraped_at":      datetime.utcnow().isoformat(),
+                })
+
+        return plans

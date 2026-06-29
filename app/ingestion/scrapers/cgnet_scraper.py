@@ -1,8 +1,8 @@
 import re
-import httpx
 from bs4 import BeautifulSoup
 from datetime import datetime
 from app.logger import get_logger
+from curl_cffi.requests import AsyncSession
 
 logger = get_logger(__name__)
 

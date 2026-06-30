@@ -1,3 +1,13 @@
+"""
+app/ingestion/scrapers/vianet_scraper.py
+HTTP scraper for Vianet — static HTML table, no JS needed.
+
+Page structure (from live site):
+  Plans are in two <table> blocks:
+    1. "Renewal Rate" table  — row 0: title, row 1: plan headers, rows 2+: data
+    2. "New Installation Rates" table — same structure
+  Columns: Pro WiFi 6 (250 Mbps) | Ultra WiFi 6 (400 Mbps) | Ultra Max WiFi 6 (600 Mbps)
+"""
 import re
 import httpx
 from bs4 import BeautifulSoup
@@ -60,10 +70,13 @@ class VianetScraper:
 
         for table in tables:
             rows = table.find_all("tr")
-            if len(rows) < 2:
+            if len(rows) < 3:
                 continue
 
-            header_row = rows[0]
+            title_row  = rows[0]
+            header_row = rows[1]
+
+            title_text = title_row.get_text(strip=True).lower()
             headers    = [td.get_text(strip=True) for td in header_row.find_all(["th", "td"])]
 
             col_map = {}
@@ -76,12 +89,9 @@ class VianetScraper:
             if not col_map:
                 continue
 
-            table_type = "renewal"
-            prev = table.find_previous(["h2", "h3", "h4", "p", "strong", "div"])
-            if prev and "new installation" in prev.get_text(strip=True).lower():
-                table_type = "new_installation"
+            table_type = "new_installation" if "new installation" in title_text else "renewal"
 
-            for row in rows[1:]:
+            for row in rows[2:]:
                 cells = row.find_all(["th", "td"])
                 if not cells:
                     continue

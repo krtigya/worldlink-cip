@@ -1,5 +1,8 @@
 """
-app/ingestion/scrapers/worldlink_scraper.py
+While scrapping the worldlink website, 
+we can use a simple HTTP scraper instead 
+of Playwright since the website has standard HTML. 
+This scraper uses httpx for making HTTP requests and BeautifulSoup for parsing the HTML content.
 Simple HTTP scraper for WorldLink — uses httpx + BeautifulSoup
 instead of Playwright since WorldLink has standard HTML.
 """
@@ -40,14 +43,14 @@ class WorldLinkScraper:
         except Exception as e:
             logger.error("worldlink_fetch_failed", error=str(e))
             return []
-
         soup = BeautifulSoup(html, "lxml")
         containers = soup.find_all("div", class_=lambda c: c and "plans-card" in c and "item" in c)
-
+        if  not containers:
+            containers = soup.select(".package-item, .plan-item, .package-card")
         if not containers:
-            logger.warning("worldlink_no_plans_found", selector=selectors["plan_container"])
+            logger.warning("worldlink_no_plans_found", selectors=selectors["plan_container"])
             return []
-
+        
         plans = []
         for el in containers:
             name_el  = el.select_one(selectors.get("name", ""))

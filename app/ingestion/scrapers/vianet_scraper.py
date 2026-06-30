@@ -1,13 +1,3 @@
-"""
-app/ingestion/scrapers/vianet_scraper.py
-HTTP scraper for Vianet — static HTML table, no JS needed.
-
-Page structure (from live site):
-  Plans are in two <table> blocks:
-    1. "Renewal Rate" table  — rows: 1 Month / 3 Months / 12 Months
-    2. "New Connection" table — rows: 3 Months / 12 Months
-  Columns: Plus (100 Mbps) | Pro (200 Mbps) | Ultra (300 Mbps)
-"""
 import re
 import httpx
 from bs4 import BeautifulSoup
@@ -28,12 +18,10 @@ HEADERS = {
 
 URL = "https://www.vianet.com.np/vianetwifi6/"
 
-
-# Column → (plan name, speed)
 COLUMNS = {
-    "Plus":  ("Vianet Plus",  "100 Mbps"),
-    "Pro":   ("Vianet Pro",   "200 Mbps"),
-    "Ultra": ("Vianet Ultra", "300 Mbps"),
+    "Pro WiFi 6":       ("Vianet Pro",      "250 Mbps"),
+    "Ultra WiFi 6":     ("Vianet Ultra",    "400 Mbps"),
+    "Ultra Max WiFi 6": ("Vianet UltraMax", "600 Mbps"),
 }
 
 
@@ -43,7 +31,7 @@ class VianetScraper:
 
     async def scrape(self) -> list[dict]:
         config = self.isp.scraper_config
-        url    = config.get("plan_list_url", PLAN_URL)
+        url    = config.get("plan_list_url", URL)
 
         logger.info("vianet_http_scrape_start", url=url)
 
@@ -75,35 +63,32 @@ class VianetScraper:
             if len(rows) < 2:
                 continue
 
-            # Detect header row — find column names (Plus / Pro / Ultra)
             header_row = rows[0]
             headers    = [td.get_text(strip=True) for td in header_row.find_all(["th", "td"])]
 
-            # Find which columns map to plan names
-            col_map = {}  # col_index → (plan_name, speed)
+            col_map = {}
             for idx, h in enumerate(headers):
+                h_clean = h.strip()
                 for key, (name, speed) in COLUMNS.items():
-                    if key.lower() in h.lower():
+                    if h_clean == key:
                         col_map[idx] = (name, speed)
 
             if not col_map:
                 continue
 
-            # Detect table type from heading text above or caption
             table_type = "renewal"
             prev = table.find_previous(["h2", "h3", "h4", "p", "strong", "div"])
-            if prev and "new connection" in prev.get_text(strip=True).lower():
-                table_type = "new_connection"
+            if prev and "new installation" in prev.get_text(strip=True).lower():
+                table_type = "new_installation"
 
-            # Parse data rows
             for row in rows[1:]:
                 cells = row.find_all(["th", "td"])
                 if not cells:
                     continue
 
-                row_label = cells[0].get_text(strip=True)  # e.g. "1 Month", "3 Months"
+                row_label = cells[0].get_text(strip=True)
                 if not re.match(r"\d+\s*Month", row_label, re.I):
-                    continue  # skip speed rows, button rows, etc.
+                    continue
 
                 for col_idx, (plan_name, speed) in col_map.items():
                     if col_idx >= len(cells):
@@ -111,8 +96,6 @@ class VianetScraper:
 
                     price_text = cells[col_idx].get_text(strip=True)
 
-                    # Accept prices in multiple formats:
-                    # "Rs 1,500", "Rs. 1500", "NPR 1500", "1500", "1,500"
                     has_price = (
                         re.search(r"Rs\.?\s*[\d,]+", price_text, re.I)
                         or re.search(r"NPR\s*[\d,]+", price_text, re.I)

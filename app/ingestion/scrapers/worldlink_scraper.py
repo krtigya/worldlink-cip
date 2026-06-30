@@ -1,8 +1,4 @@
 """
-While scrapping the worldlink website, 
-we can use a simple HTTP scraper instead 
-of Playwright since the website has standard HTML. 
-This scraper uses httpx for making HTTP requests and BeautifulSoup for parsing the HTML content.
 Simple HTTP scraper for WorldLink — uses httpx + BeautifulSoup
 instead of Playwright since WorldLink has standard HTML.
 """
@@ -43,32 +39,32 @@ class WorldLinkScraper:
         except Exception as e:
             logger.error("worldlink_fetch_failed", error=str(e))
             return []
+
         soup = BeautifulSoup(html, "lxml")
         containers = soup.find_all("div", class_=lambda c: c and "plans-card" in c and "item" in c)
-        if  not containers:
-            containers = soup.select(".package-item, .plan-item, .package-card")
+
         if not containers:
-            logger.warning("worldlink_no_plans_found", selectors=selectors["plan_container"])
+            logger.warning("worldlink_no_plans_found", selector=selectors.get("plan_container"))
             return []
-        
+
         plans = []
         for el in containers:
-            name_el  = el.select_one(selectors.get("name", ""))
-            price_el = el.select_one(selectors.get("price", ""))
-            speed_el = el.select_one(selectors.get("speed", ""))
+            speed_el    = el.select_one(".plans__speed")
+            amount_el   = el.select_one(".plans__title .amount")
+            duration_el = el.select_one(".plans__duration")
+            features_el = el.select_one(".plans__features")
 
-            raw_name  = name_el.get_text(strip=True)  if name_el  else ""
-            raw_price = price_el.get_text(strip=True) if price_el else ""
-            raw_speed = speed_el.get_text(strip=True) if speed_el else ""
+            raw_speed    = speed_el.get_text(strip=True) if speed_el else ""
+            raw_price    = f"Rs. {amount_el.get_text(strip=True)}" if amount_el else ""
+            raw_duration = duration_el.get_text(strip=True) if duration_el else ""
+            raw_name     = f"WorldLink {raw_speed} {raw_duration}".strip()
 
-            bundle_sel  = selectors.get("bundles")
-            raw_bundles = (
-                [b.get_text(strip=True) for b in el.select(bundle_sel) if b.get_text(strip=True)]
-                if bundle_sel else []
-            )
-
-            desc_el         = el.select_one(".description, p")
-            raw_description = desc_el.get_text(strip=True) if desc_el else ""
+            raw_bundles = []
+            if features_el:
+                raw_bundles = [
+                    t for t in features_el.stripped_strings
+                    if t and len(t) > 1
+                ]
 
             if raw_name and raw_price:
                 plans.append({
@@ -77,7 +73,7 @@ class WorldLinkScraper:
                     "raw_price":       raw_price,
                     "raw_speed":       raw_speed,
                     "raw_bundles":     raw_bundles,
-                    "raw_description": raw_description,
+                    "raw_description": f"WorldLink {raw_speed} plan, {raw_duration}".strip(),
                     "source_url":      url,
                     "scraped_at":      datetime.utcnow().isoformat(),
                 })

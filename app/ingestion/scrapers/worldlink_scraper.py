@@ -73,7 +73,7 @@ class WorldLinkScraper:
                     "raw_price":       raw_price,
                     "raw_speed":       raw_speed,
                     "raw_bundles":     raw_bundles,
-                    "raw_description": f"WorldLink {raw_speed} plan, {raw_duration}".strip(),
+                    "raw_description": f"WorldLink {raw_speed} plan, {raw_duration}. No FUP, unlimited data.".strip(),
                     "source_url":      url,
                     "scraped_at":      datetime.utcnow().isoformat(),
                 })

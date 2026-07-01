@@ -121,7 +121,7 @@ class VianetScraper:
                         "raw_price":       price_text,
                         "raw_speed":       speed,
                         "raw_bundles":     [],
-                        "raw_description": f"Vianet {plan_name} {speed} - {row_label} {table_type}",
+                        "raw_description": f"Vianet {plan_name} {speed} - {row_label} {table_type}. No FUP, unlimited data.",
                         "source_url":      url,
                         "scraped_at":      datetime.utcnow().isoformat(),
                     })

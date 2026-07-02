@@ -197,6 +197,16 @@ class RagService:
         """
         sources = self.search(question, limit=8)
 
+        # Always inject WorldLink into context if not already present
+        worldlink_in_sources = any(
+            s.get("isp_name", "").lower() == "worldlink" or
+            s.get("isp_id") == 1
+            for s in sources
+        )
+        if not worldlink_in_sources:
+            wl_sources = self.search(question, isp_ids=[1], limit=3)
+            sources = sources[:5] + wl_sources
+
         if not sources:
             return {
                 "answer":  "No matching plans found. Try broadening your search.",
@@ -241,21 +251,23 @@ class RagService:
 
     @staticmethod
     def _build_plan_text(row) -> str:
+        # PATCHED
         bundle_text = (
             f"Includes: {', '.join(row.bundle_flags)}."
-            if row.bundle_flags else "No bundles."
+            if row.bundle_flags else "No additional bundles."
         )
         fup_text = (
-            "Unlimited data."
+            "Unlimited data, no FUP."
             if row.is_unlimited
-            else (f"FUP: {row.fup_gb} GB." if row.fup_gb else "")
+            else (f"FUP limit: {row.fup_gb} GB per month." if row.fup_gb else "FUP terms not specified.")
         )
         return " ".join(filter(None, [
-            f"{row.isp_name} {row.normalized_name}.",
-            f"Speed: {row.download_mbps} Mbps download.",
-            f"Price: NPR {row.price_monthly} per month.",
+            f"{row.isp_name} internet plan: {row.normalized_name}.",
+            f"Provider: {row.isp_name}.",
+            f"Speed: {row.download_mbps} Mbps download internet connection.",
+            f"Price: NPR {row.price_monthly} per month, monthly cost.",
             fup_text,
             bundle_text,
-            f"Plan type: {row.plan_type}.",
-            f"Value: NPR {round(float(row.price_monthly) / row.download_mbps, 2)} per Mbps.",
+            f"Plan category: {row.plan_type} internet service.",
+            f"Cost efficiency: NPR {round(float(row.price_monthly) / row.download_mbps, 2)} per Mbps, price per megabit.",
         ]))

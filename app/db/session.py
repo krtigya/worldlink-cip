@@ -1,4 +1,5 @@
 """
+Here I am writing code for the Async SQLAlchemy session factory.
 app/db/session.py — Async SQLAlchemy session factory.
 Uses asyncpg driver for high-performance async DB access.
 """

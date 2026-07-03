@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
     # CORS (restrict in production)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if not settings.is_production else ["https://cip.worldlink.com.np"],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

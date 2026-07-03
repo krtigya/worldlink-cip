@@ -1,4 +1,5 @@
 """
+Here I am writing code for the RAG (Retrieval-Augmented Generation) API endpoints.
 POST /api/rag/query   — semantic plan search
 POST /api/rag/ask     — full RAG with LLM answer
 POST /api/rag/reindex — re-index all plans in Qdrant

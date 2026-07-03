@@ -46,8 +46,6 @@ class AlertDispatcher:
             return_exceptions=True,
         )
 
-    # -- Slack ------------------------------------------------------------------
-
     async def _send_slack(self, alerts: list[AlertPayload]) -> None:
         webhook = get_settings().slack_webhook_url
         if not alerts or not webhook:
@@ -120,7 +118,6 @@ class AlertDispatcher:
             "attachments": [{"color": SEVERITY_COLOR[top_sev], "blocks": blocks}],
         }
 
-    # -- Email ------------------------------------------------------------------
 
     async def _send_email(self, alerts: list[AlertPayload]) -> None:
         if not alerts:
@@ -176,7 +173,7 @@ def _chunk(lst, size):
     return [lst[i:i+size] for i in range(0, len(lst), size)]
 
 
-# -- Sample output -------------------------------------------------------------
+
 
 SAMPLE_SLACK_OUTPUT = {
     "text": "CIP: 2 competitive change(s) detected",

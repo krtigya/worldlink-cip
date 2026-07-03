@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: 'http://localhost:8000' })
+const api = axios.create({ baseURL: '' })
 
 export const getPlans = (params) => api.get('/api/plans', { params })
 export const getCompare = () => api.get('/api/plans/compare')

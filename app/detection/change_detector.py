@@ -1,4 +1,6 @@
 """
+Here, i am writing code for the ChangeDetector class, which compares freshly-scraped normalized plans
+ against the database state. It emits structured ChangeEvent objects and persists everything in one transaction.
 Compares freshly-scraped normalized plans against DB state.
 Emits structured ChangeEvent objects and persists everything in one transaction.
 """

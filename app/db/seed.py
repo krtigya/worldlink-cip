@@ -1,4 +1,6 @@
-"""Seed initial ISP records and intelligence rules."""
+"""here i write the code to seed the initial ISP records and intelligence rules into the database.
+Seed initial ISP records and intelligence rules."""
+
 from sqlalchemy.orm import Session
 from app.models import Isp, IntelRule
 from app.logger import get_logger

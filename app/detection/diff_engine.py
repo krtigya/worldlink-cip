@@ -1,8 +1,7 @@
 """
+Here, i am writing code for the WorldLink CIP — Change Detection / Diff Engine.
 WorldLink CIP — Change Detection / Diff Engine
-===============================================
-Usage: called by your Celery task after each scrape run.
-
+Usage: called by the Celery task after each scrape run.
 Flow:
     scraper returns List[ScrapedPlan]
         → diff_plans() compares against DB
@@ -223,7 +222,7 @@ def _diff_bundles(
     return events
 
 
-# ── Core diff function ────────────────────────────────────────────────────────
+
 
 def diff_plan(
     scraped:  ScrapedPlan,
@@ -319,10 +318,10 @@ def diff_plans(
                 },
             ))
         else:
-            # Existing plan — field-level diff
+            
             events.extend(diff_plan(scraped, existing_by_name[name], isp_name))
 
-    # ── Check for removed plans ───────────────────────────────
+    
     for name, existing in existing_by_name.items():
         if name not in scraped_by_name and existing.get("status") == "active":
             events.append(ChangeEvent(
@@ -359,7 +358,7 @@ async def persist_changes(
     if not events and not scraped:
         return 0
 
-    # 1. Upsert plans (insert new, update existing)
+    
     for plan in scraped:
         await session.execute(
             text("""

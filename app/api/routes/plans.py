@@ -1,4 +1,5 @@
 """
+Here I am writing code for the API endpoints related to plans.
 GET /api/plans          — list active plans with filters
 GET /api/plans/compare  — WorldLink vs competitors at same speed
 GET /api/plans/{id}     — single plan detail

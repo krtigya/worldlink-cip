@@ -1,179 +1,244 @@
-# WorldLink CIP — Python Edition
-## Competitive Intelligence Platform
+                        WorldLink CIP — Competitive Intelligence Platform
 
-Internal system to track competitor ISPs (Vianet, Subisu, DishHome, CG Net)
-and generate actionable insights for WorldLink Communications.
-
----
-
-## Tech Stack
-
-| Layer         | Technology                            |
-|---------------|---------------------------------------|
-| API           | FastAPI + Uvicorn                     |
-| Scraping      | Playwright (Python)                   |
-| Task Queue    | Celery + Redis (BullMQ equivalent)    |
-| Database      | PostgreSQL 15 + SQLAlchemy 2.0        |
-| Migrations    | Alembic                               |
-| Vector DB     | Qdrant                                |
-| Embeddings    | sentence-transformers (local, free)   |
-| LLM           | Groq (llama-3.1-8b-instant, free)     |
-| Alerts        | Slack Webhooks + Email (Jinja2 HTML)  |
-| Validation    | Pydantic v2                           |
-| Logging       | structlog                             |
-
----
-
-## Quick Start
-
-```bash
-# 1. Clone and setup
-cp .env.example .env
-# Edit .env — add your GROQ_API_KEY and SLACK_WEBHOOK_URL
-
-# 2. Create virtual environment
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Install Playwright browser
-playwright install chromium
-
-# 5. Start infrastructure
-docker-compose up -d postgres redis qdrant
-
-# 6. Run migrations
-alembic upgrade head
-
-# 7. Seed ISPs and rules
-python scripts/seed.py
-
-# 8. Start API server
-uvicorn app.main:app --reload --port 8000
-
-# 9. Start Celery worker (separate terminal)
-celery -A app.ingestion.tasks.celery_app worker --loglevel=info -Q scrape,reports -c 3
-
-# 10. Start Celery beat scheduler (separate terminal)
-celery -A app.ingestion.tasks.celery_app beat --loglevel=info
-```
-
----
-
-## API Endpoints
-
-| Method | Path                      | Description                              |
-|--------|---------------------------|------------------------------------------|
-| GET    | /health                   | Health check                             |
-| GET    | /api/isps                 | List all ISPs                            |
-| GET    | /api/plans                | List plans (filter: isp, speed, price)   |
-| GET    | /api/plans/compare        | WorldLink vs competitors                 |
-| GET    | /api/plans/{id}/history   | Pricing history for a plan               |
-| GET    | /api/changes              | Change log (filter: severity, type, isp) |
-| GET    | /api/changes/summary      | Change counts by type this week          |
-| POST   | /api/rag/query            | Semantic plan search                     |
-| POST   | /api/rag/ask              | Natural language Q&A (full RAG)          |
-| POST   | /api/rag/reindex          | Re-index all plans in Qdrant             |
-| GET    | /api/reports/latest       | Latest weekly report                     |
-| POST   | /api/reports/generate     | Generate report on-demand                |
-| POST   | /api/scrape/trigger       | Trigger manual scrape                    |
-| GET    | /api/scrape/runs          | Scrape run history                       |
-| GET    | /docs                     | Interactive Swagger UI                   |
-
----
-
-## Example RAG Queries
-
-```bash
-# Semantic search
-curl -X POST http://localhost:8000/api/rag/query \
-  -H "Content-Type: application/json" \
-  -d '{"q": "cheapest 300 Mbps plan", "max_price": 2000}'
-
-# Natural language question
-curl -X POST http://localhost:8000/api/rag/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "Which ISP offers best value fiber plan with Netflix under NPR 2500?"}'
-```
-
----
-
-## Project Structure
-
-```
-cip-python/
+A system that automatically tracks internet service provider (ISP) pricing in Nepal, detects when competitors change their plans, sends alerts, and displays everything on a live dashboard.
+What This Project Does
+WorldLink is an ISP in Nepal. This platform watches competitor ISPs (Vianet, DishHome, and CGNet) every 6 hours, compares their plans against WorldLink's plans, and immediately notifies the team when anything changes — a price drop, a new plan, a bundle addition, or a plan being removed.
+## IF We Implement, The system also answers natural language questions like "How does WorldLink 300 Mbps compare to DishHome at the same speed?" using AI.
+________________________________________
+Live Features
+•	Scrapes 4 ISPs automatically every 6 hours (WorldLink, Vianet, DishHome, CGNet)
+•	Detects price changes, speed changes, bundle changes, and new or removed plans
+•	Sends Slack and email alerts when competitors make significant moves
+•	Stores 61+ live plans in a database with full history
+•	Dashboard showing price comparison charts, market positioning, and a live change feed
+•	AI-powered semantic search — ask questions in plain English and get answers
+•	Weekly competitive intelligence report generated every Monday morning
+________________________________________
+Tech Stack
+Layer	Technology
+Backend API	FastAPI (Python)
+Database	PostgreSQL
+Task queue	Celery + Redis
+Vector search	Qdrant
+AI / LLM	Groq (llama-3.1-8b-instant)
+Embeddings	Sentence Transformers (all-MiniLM-L6-v2)
+Scrapers	httpx + BeautifulSoup, Playwright
+Frontend	React + Vite + Tailwind CSS + Recharts
+Containers	Docker + Docker Compose
+________________________________________
+Project Structure
+worldlink-cip/
 ├── app/
-│   ├── main.py                    # FastAPI app factory + lifespan
-│   ├── config.py                  # Pydantic settings
-│   ├── logger.py                  # structlog setup
-│   ├── models/                    # SQLAlchemy ORM models
-│   │   ├── isp.py
-│   │   ├── plan.py
-│   │   ├── pricing_history.py
-│   │   ├── campaign.py
-│   │   ├── change_log.py
-│   │   ├── scrape_run.py
-│   │   ├── weekly_report.py
-│   │   └── intel_rule.py
-│   ├── db/
-│   │   ├── session.py             # Async + sync SQLAlchemy sessions
-│   │   └── seed.py                # ISP + rules seeding
-│   ├── schemas/                   # Pydantic request/response schemas
+│   ├── api/
+│   │   └── routes/
+│   │       ├── plans.py        # Plan listing, comparison, history endpoints
+│   │       ├── changes.py      # Change log endpoints
+│   │       ├── rag.py          # AI semantic search endpoints
+│   │       ├── reports.py      # Weekly reports and positioning endpoints
+│   │       ├── scrape.py       # Manual scrape trigger endpoint
+│   │       └── isps.py         # ISP listing endpoint
 │   ├── ingestion/
 │   │   ├── scrapers/
-│   │   │   ├── base_scraper.py    # Playwright base + config-driven
-│   │   │   ├── vianet_scraper.py  # XHR-intercept scraper
-│   │   │   └── scraper_factory.py
+│   │   │   ├── worldlink_scraper.py
+│   │   │   ├── vianet_scraper.py
+│   │   │   ├── dishhome_scraper.py
+│   │   │   └── cgnet_scraper.py
 │   │   └── tasks/
-│   │       ├── celery_app.py      # Celery + beat schedule
-│   │       └── scrape_tasks.py    # Celery task definitions
-│   ├── normalization/
-│   │   └── normalizer.py          # Speed/price/bundle normalization
+│   │       ├── celery_app.py   # Celery config and Beat schedule
+│   │       └── scrape_tasks.py # Celery tasks for each ISP
 │   ├── detection/
-│   │   └── change_detector.py     # Field-level diff engine
+│   │   └── change_detector.py # Compares new scraped data vs database
+│   ├── normalization/
+│   │   └── normalizer.py       # Converts raw scraped data to structured format
 │   ├── intelligence/
-│   │   └── rules_engine.py        # Configurable alert rules
-│   ├── rag/
-│   │   └── rag_service.py         # Qdrant + sentence-transformers + Groq
-│   ├── reports/
-│   │   └── report_generator.py    # Weekly report + LLM summarization
+│   │   └── rules_engine.py     # Rules for deciding alert severity
 │   ├── alerts/
-│   │   └── alert_dispatcher.py    # Slack + Email dispatcher
-│   └── api/
-│       ├── routes/                # FastAPI routers
-│       └── middleware/            # Request logging
-├── alembic/                       # Database migrations
-├── tests/                         # Pytest test suite
-├── scripts/                       # CLI utility scripts
+│   │   └── alert_dispatcher.py # Sends Slack and email alerts
+│   ├── rag/
+│   │   └── rag_service.py      # Qdrant vector search + Groq LLM
+│   ├── reports/
+│   │   └── report_generator.py # Weekly report generation
+│   └── models/          
+
+       # SQLAlchemy database models
+├── frontend/
+│   └── src/
+│       ├── App.jsx             # Main dashboard
+│       └── api.js              # API calls to FastAPI backend
+├── alembic/                    # Database migrations
+├── tests/                      # Unit tests
 ├── docker-compose.yml
 ├── Dockerfile
-├── requirements.txt
-└── README.md
-```
+└── requirements.txt
+________________________________________
+Getting Started
+Requirements
+•	Docker Desktop installed and running
+•	Node.js 20+ (for the frontend)
+•	Git
+1. Clone the repository
+git clone https://github.com/your-username/worldlink-cip.git
+cd worldlink-cip
+2. Set up environment variables
+Create a .env file in the project root:
+# Database
+DATABASE_URL=postgresql+asyncpg://cip_user:cip_password@postgres:5432/worldlink_cip
+DATABASE_URL_SYNC=postgresql://cip_user:cip_password@postgres:5432/worldlink_cip
 
----
+# Redis
+REDIS_URL=redis://redis:6379/0
 
-## Cron Schedule (Celery Beat)
+# Qdrant (vector database)
+QDRANT_URL=http://qdrant:6333
+QDRANT_COLLECTION=cip_plans
 
-| Job              | Schedule        | Description                        |
-|------------------|-----------------|------------------------------------|
-| Scrape all ISPs  | Every 6 hours   | Full scrape + change detection     |
-| Weekly report    | Monday 8am NPT  | Generate & persist weekly report   |
+# AI
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_LLM_MODEL=llama-3.1-8b-instant
+EMBEDDING_MODEL=all-MiniLM-L6-v2
 
----
+# Alerts
+SLACK_WEBHOOK_URL=your_slack_webhook_url
+ALERT_EMAIL=intel@worldlink.com.np
 
-## Running Tests
+# App
+APP_ENV=development
+APP_PORT=8000
+Get a free Groq API key at console.groq.com.
+3. Start the backend
+docker compose up -d
+This starts PostgreSQL, Redis, Qdrant, the FastAPI app, Celery worker, Celery Beat scheduler, and Flower (task monitor).
+4. Run database migrations
+docker compose exec app bash -c "cd /app && PYTHONPATH=/app alembic upgrade head"
+5. Start the frontend
+cd frontend
+npm install
+npm run dev
+Open http://localhost:5173 in your browser.
+________________________________________
+API Endpoints
+All endpoints are available at http://localhost:8000. Interactive docs at http://localhost:8000/docs.
+Plans
+Method	Endpoint	Description
+GET	/api/plans	List all active plans with filters
+GET	/api/plans/compare	WorldLink vs competitor prices at each speed tier
+GET	/api/plans/{id}	Single plan detail
+GET	/api/plans/{id}/history	Price history for a plan
 
-```bash
-pytest tests/ -v
-pytest tests/test_normalizer.py -v      # normalizer unit tests
-pytest tests/test_change_detector.py -v # detector unit tests
-```
+Filter options for /api/plans:
+•	isp — filter by ISP slug (worldlink, vianet, dishhome, cgnet)
+•	min_speed / max_speed — speed range in Mbps
+•	max_price — maximum monthly price in NPR
+•	bundle — filter by bundle type (iptv, router, ott)
+Changes
+Method	Endpoint	Description
+GET	/api/changes	Recent change log with filters
+GET	/api/changes/summary	Count of changes by type this week
 
----
+AI Search
+Method	Endpoint	Description
+POST	/api/rag/query	Semantic search — find plans matching a description
+POST	/api/rag/ask	Ask a question in plain English, get an AI answer
+POST	/api/rag/reindex	Rebuild the Qdrant search index
+Example — semantic search:
+POST /api/rag/query
+{ "q": "cheapest unlimited 300 Mbps plan", "limit": 5 }
+Example — AI question:
+POST /api/rag/ask
+{ "question": "How does WorldLink compare to DishHome at 300 Mbps?" }
 
-## Monitor Celery Jobs
+Reports
+Method	Endpoint	Description
+GET	/api/reports	List all past weekly reports
+GET	/api/reports/latest	Latest weekly report
+GET	/api/reports/positioning	Current WorldLink market position vs competitors
+POST	/api/reports/generate	Generate a report on demand
+________________________________________
+How the Scraping Works
+Each ISP has a dedicated scraper:
+•	WorldLink — fetches worldlink.com.np homepage using httpx and parses plan cards with BeautifulSoup
+•	Vianet — fetches vianet.com.np/vianetwifi6/ and parses the pricing tables (two rows of headers, data starts from row 2)
+•	DishHome — uses Playwright to load the React SPA, intercepts the internal API call to dmnwebapi.dishhome.com.np/v1/internet/get-internet-packages, and parses the JSON response
+•	CGNet — fetches cgnet.com.np/wifi-six using httpx and BeautifulSoup (note: CGNet may block requests from certain IP ranges)
+After scraping, each plan goes through:
+1.	Normalization — converts raw strings to typed data (speed to Mbps int, price to NPR float, bundle detection)
+2.	Diff — compares against existing database records
+3.	Change detection — any difference creates a change_log entry with severity rating
+4.	Alerting — high/critical changes trigger Slack and email alerts
+5.	Qdrant indexing — plans are embedded and stored for semantic search
+________________________________________
+Scrape Schedule
+Celery Beat runs scrapers automatically:
+Task	Schedule
+All ISPs (full sweep)	Every 6 hours
+WorldLink	Every 12 hours at :00
+Vianet	Every 12 hours at :05
+CGNet	Every 12 hours at :10
+DishHome	Every 12 hours at :15
+Weekly report	Every Monday at 8am NPT
+________________________________________
+Change Detection
+The system compares these fields on every scrape:
+•	price_monthly — triggers price_decrease or price_increase
+•	download_mbps — triggers speed_change
+•	bundle_flags — triggers bundle_added or bundle_removed
+•	Plan appearing for first time — triggers plan_added
+•	Plan disappearing from the site — triggers plan_removed
+Severity levels:
+Severity	Condition
+Critical	Price change > 10%, or plan removed
+High	New plan, bundle change, speed change
+Medium	Price change 3–10%
+Low	Price change < 3%
+________________________________________
+Dashboard
+The frontend dashboard at http://localhost:5173 shows:
+•	Stat cards — speed tiers tracked, WorldLink wins, coverage gaps, recent changes
+•	Price comparison chart — bar chart comparing WorldLink vs competitor prices at each speed tier (green = WL cheaper, red = competitor cheaper, grey = no WL plan)
+•	Market positioning table — detailed breakdown with diff percentages
+•	Recent changes feed — severity-tagged list of recent plan changes
+•	WorldLink vs Competitors table — filterable by speed tier
+________________________________________
+Monitoring
+Flower (Celery task monitor) is available at http://localhost:5555. It shows:
+•	Which tasks are running or queued
+•	Task success/failure history
+•	Worker status
+Scrape run history is stored in the scrape_runs table:
+SELECT isp_slug, status, plans_found, changes_detected, duration_ms, started_at
+FROM scrape_runs
+ORDER BY started_at DESC
+LIMIT 20;
+________________________________________
+Running Tests
+docker compose exec app bash -c "cd /app && PYTHONPATH=/app pytest tests/test_change_detector.py -v"
+________________________________________
+Known Limitations
+•	C
+•	
+•	
+•	GNet blocks scraper requests from some IP ranges (TLS-level rejection). Plans are seeded manually from the live site data.
+•	DishHome requires Playwright (headless Chromium) because their site is a React SPA. This makes the DishHome scraper slower (~15 seconds) than the others (~2 seconds).
+•	The RAG semantic search uses all-MiniLM-L6-v2, a general-purpose model. It works well for price/speed queries but may miss nuanced bundle comparisons.
+•	Price history charts require at least 2 scrape cycles with a real price change to show a trend line.
+________________________________________
+Environment Services
+Service	URL	Purpose
+FastAPI	http://localhost:8000	Backend API
+API Docs	http://localhost:8000/docs	Swagger UI
+Dashboard	http://localhost:5173	Frontend
+Flower	http://localhost:5555	Celery task monitor
+PostgreSQL	localhost:5435	Database
+Qdrant	http://localhost:6333	Vector search
+Redis	localhost:6379	Task broker
+________________________________________
+Contributing
+1.	Create a feature branch: git checkout -b feature/your-feature
+2.	Make your changes
+3.	Run tests: pytest tests/ -v
+4.	Commit: git commit -m "add: your feature description"
+5.	Push and open a pull request
+________________________________________
+License
+Internal tool — WorldLink Communications Pvt.Ltd..
 
-Open Flower dashboard at: http://localhost:5555

@@ -24,7 +24,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 
-# ── Severity & change type enums (match your DB check constraints) ────────────
 
 class Severity(str, Enum):
     CRITICAL = "critical"   # price drop >10%, plan removed
@@ -44,7 +43,6 @@ class ChangeType(str, Enum):
     STATUS_CHANGE   = "status_change"
 
 
-# ── Data classes ──────────────────────────────────────────────────────────────
 
 @dataclass
 class ScrapedPlan:
@@ -62,8 +60,8 @@ class ScrapedPlan:
     vat_included:    bool
     is_unlimited:    bool
     contract_months: int
-    bundles:         list[dict]   # [{"type": "router", "name": "WiFi 6"}]
-    bundle_flags:    set[str]     # {"router", "iptv"}
+    bundles:         list[dict]   
+    bundle_flags:    set[str]     
     description:     str
     scrape_url:      str
     raw_data:        dict = field(default_factory=dict)
@@ -73,7 +71,7 @@ class ScrapedPlan:
 class ChangeEvent:
     """One detected change to be written to change_logs."""
     isp_id:      int
-    plan_id:     int | None       # None for plan_added (no existing row yet)
+    plan_id:     int | None       
     change_type: ChangeType
     severity:    Severity
     field_name:  str | None
@@ -84,7 +82,7 @@ class ChangeEvent:
     details:     dict
 
 
-# ── Severity rules ─────────────────────────────────────────────────────────────
+
 
 def _price_severity(diff_pct: float) -> Severity:
     """Map a price diff percentage to severity. diff_pct is signed (negative = cheaper)."""
@@ -100,7 +98,6 @@ def _change_type_for_price(diff_pct: float) -> ChangeType:
     return ChangeType.PRICE_DECREASE if diff_pct < 0 else ChangeType.PRICE_INCREASE
 
 
-# ── Field diffing helpers ──────────────────────────────────────────────────────
 
 def _diff_price(
     field_name: str,

@@ -1,4 +1,5 @@
 """
+here I write the code for alert_dispatcher.py
 app/alerts/alert_dispatcher.py
 Dispatches alerts to Slack (webhook) and email (HTML).
 Builds rich Slack Block Kit messages with color-coded severity.

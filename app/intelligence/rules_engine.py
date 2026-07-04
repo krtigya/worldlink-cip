@@ -80,7 +80,7 @@ class RulesEngine:
 
         return alerts
 
-    # ── Condition matching ─────────────────────────────────────────────────
+    
 
     def _matches(self, event: ChangeEvent, condition: dict, plans: dict) -> bool:
         ctype = condition.get("type")

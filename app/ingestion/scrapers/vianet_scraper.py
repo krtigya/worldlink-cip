@@ -2,11 +2,6 @@
 app/ingestion/scrapers/vianet_scraper.py
 HTTP scraper for Vianet — static HTML table, no JS needed.
 
-Page structure (from live site):
-  Plans are in two <table> blocks:
-    1. "Renewal Rate" table  — row 0: title, row 1: plan headers, rows 2+: data
-    2. "New Installation Rates" table — same structure
-  Columns: Pro WiFi 6 (250 Mbps) | Ultra WiFi 6 (400 Mbps) | Ultra Max WiFi 6 (600 Mbps)
 """
 import re
 import httpx

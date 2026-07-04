@@ -21,13 +21,7 @@ logger = get_logger(__name__)
 
 
 def _run_async(coro):
-    """
-    Run an async coroutine from a sync Celery task.
-
-    On Windows, Playwright requires ProactorEventLoop to launch subprocesses.
-    WindowsSelectorEventLoopPolicy (Celery's default on Windows) does NOT support
-    this, so we explicitly set the policy before creating the loop.
-    """
+    
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
@@ -59,24 +53,7 @@ def _get_session() -> Session:
     retry_backoff=True,
 )
 def scrape_isp(self, isp_id: int) -> dict:
-    """
-    Full scrape pipeline for a single ISP.
-
-    Steps:
-      1. Create a ScrapeRun record (status=running)
-      2. Scrape raw plans via ScraperFactory
-      3. Normalize each raw plan into a standard shape
-      4. Run ChangeDetector to diff against existing DB plans
-      5. Evaluate RulesEngine and dispatch any alerts
-      6. Re-index Qdrant via RagService
-      7. Update ScrapeRun with final counts and status
-
-    Args:
-        isp_id: Primary key of the ISP row to scrape.
-
-    Returns:
-        Dict with keys: isp (slug), plans (count), changes (count), run_id.
-    """
+    
     session    = _get_session()
     run_id     = str(uuid.uuid4())
     start_time = datetime.now(timezone.utc)

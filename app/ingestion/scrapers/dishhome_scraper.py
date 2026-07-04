@@ -1,5 +1,4 @@
 """
-app/ingestion/scrapers/dishhome_scraper.py
 Playwright scraper for DishHome — React SPA.
 Intercepts dmnwebapi.dishhome.com.np internal API for plan data.
 """

@@ -1,5 +1,4 @@
 """
-app/normalization/normalizer.py
 Converts raw scraped strings into clean, typed, structured plan data.
 Speed → Mbps int. Price → NPR float. Bundles → typed list.
 """
@@ -10,7 +9,7 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-# ── Speed normalisation ─────────────────────────────────────────────────────
+
 
 SPEED_PATTERNS = [
     (re.compile(r"(\d+(?:\.\d+)?)\s*gbps?", re.I), lambda m: int(float(m.group(1)) * 1000)),
@@ -25,7 +24,7 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
     """Returns (download_mbps, upload_mbps). upload_mbps may be None."""
     cleaned = raw.strip().replace(",", "")
 
-    # Handle "300/50 Mbps" notation
+    
     split_match = re.match(r"^(\d+)/(\d+)\s*(?:mbps?)?$", cleaned, re.I)
     if split_match:
         return int(split_match.group(1)), int(split_match.group(2))
@@ -35,7 +34,7 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
         if m:
             return converter(m), None
 
-    # Last resort: first integer
+    
     num = re.search(r"(\d+)", cleaned)
     if num:
         n = int(num.group(1))
@@ -44,7 +43,7 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
     raise ValueError(f"Cannot parse speed: {raw!r}")
 
 
-# ── Price normalisation ─────────────────────────────────────────────────────
+
 
 def normalize_price(raw: str) -> float:
     """Extract NPR float from any price string."""
@@ -62,7 +61,7 @@ def normalize_price(raw: str) -> float:
     return float(num.group(1))
 
 
-# ── Bundle detection ────────────────────────────────────────────────────────
+
 
 BUNDLE_RULES = [
     {
@@ -109,7 +108,7 @@ def normalize_bundles(raw_bundles: list[str]) -> tuple[list[dict], list[str]]:
     return bundles, sorted(flags)
 
 
-# ── FUP detection ───────────────────────────────────────────────────────────
+
 
 def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[int], bool]:
     """Returns (fup_gb, is_unlimited)."""
@@ -135,7 +134,7 @@ def detect_plan_type(name: str) -> str:
     return "residential"
 
 
-# ── Plan name normalisation ─────────────────────────────────────────────────
+
 
 def normalize_plan_name(raw: str, isp_slug: str) -> str:
     name = re.sub(r"\s+", " ", raw).strip()

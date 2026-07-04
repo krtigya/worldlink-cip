@@ -144,7 +144,7 @@ def normalize_plan_name(raw: str, isp_slug: str) -> str:
     return name or f"{isp_slug.upper()} Plan"
 
 
-# ── Master normalised plan dataclass ───────────────────────────────────────
+
 
 @dataclass
 class NormalizedPlan:
@@ -183,7 +183,7 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
     normalized_name = normalize_plan_name(raw.get("raw_name", ""), isp_slug)
     plan_type = detect_plan_type(raw.get("raw_name", ""))
 
-    # VAT: assume included unless explicitly marked exclusive
+    
     raw_price_str = raw.get("raw_price", "")
     vat_included = not bool(re.search(r"excl|exclusive|without\s*vat|before\s*vat", raw_price_str, re.I))
 

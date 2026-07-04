@@ -3,8 +3,8 @@
 A system that automatically tracks internet service provider (ISP) pricing in Nepal, detects when competitors change their plans, sends alerts, and displays everything on a live dashboard.
 What This Project Does
 WorldLink is an ISP in Nepal. This platform watches competitor ISPs (Vianet, DishHome, and CGNet) every 6 hours, compares their plans against WorldLink's plans, and immediately notifies the team when anything changes — a price drop, a new plan, a bundle addition, or a plan being removed.
-## IF We Implement, The system also answers natural language questions like "How does WorldLink 300 Mbps compare to DishHome at the same speed?" using AI.
-________________________________________
+## IF We Implement the AI dashboard, The system also answers natural language questions like "How does WorldLink 300 Mbps compare to DishHome at the same speed?" using AI.
+
 Live Features
 •	Scrapes 4 ISPs automatically every 6 hours (WorldLink, Vianet, DishHome, CGNet)
 •	Detects price changes, speed changes, bundle changes, and new or removed plans
@@ -13,7 +13,9 @@ Live Features
 •	Dashboard showing price comparison charts, market positioning, and a live change feed
 •	AI-powered semantic search — ask questions in plain English and get answers
 •	Weekly competitive intelligence report generated every Monday morning
-________________________________________
+
+
+
 Tech Stack
 Layer	Technology
 Backend API	FastAPI (Python)
@@ -25,7 +27,8 @@ Embeddings	Sentence Transformers (all-MiniLM-L6-v2)
 Scrapers	httpx + BeautifulSoup, Playwright
 Frontend	React + Vite + Tailwind CSS + Recharts
 Containers	Docker + Docker Compose
-________________________________________
+
+
 Project Structure
 worldlink-cip/
 ├── app/
@@ -70,7 +73,9 @@ worldlink-cip/
 ├── docker-compose.yml
 ├── Dockerfile
 └── requirements.txt
-________________________________________
+
+
+
 Getting Started
 Requirements
 •	Docker Desktop installed and running
@@ -153,7 +158,7 @@ GET	/api/reports	List all past weekly reports
 GET	/api/reports/latest	Latest weekly report
 GET	/api/reports/positioning	Current WorldLink market position vs competitors
 POST	/api/reports/generate	Generate a report on demand
-________________________________________
+
 How the Scraping Works
 Each ISP has a dedicated scraper:
 •	WorldLink — fetches worldlink.com.np homepage using httpx and parses plan cards with BeautifulSoup
@@ -166,7 +171,7 @@ After scraping, each plan goes through:
 3.	Change detection — any difference creates a change_log entry with severity rating
 4.	Alerting — high/critical changes trigger Slack and email alerts
 5.	Qdrant indexing — plans are embedded and stored for semantic search
-________________________________________
+
 Scrape Schedule
 Celery Beat runs scrapers automatically:
 Task	Schedule
@@ -176,7 +181,8 @@ Vianet	Every 12 hours at :05
 CGNet	Every 12 hours at :10
 DishHome	Every 12 hours at :15
 Weekly report	Every Monday at 8am NPT
-________________________________________
+
+
 Change Detection
 The system compares these fields on every scrape:
 •	price_monthly — triggers price_decrease or price_increase
@@ -190,7 +196,8 @@ Critical	Price change > 10%, or plan removed
 High	New plan, bundle change, speed change
 Medium	Price change 3–10%
 Low	Price change < 3%
-________________________________________
+
+
 Dashboard
 The frontend dashboard at http://localhost:5173 shows:
 •	Stat cards — speed tiers tracked, WorldLink wins, coverage gaps, recent changes
@@ -198,7 +205,7 @@ The frontend dashboard at http://localhost:5173 shows:
 •	Market positioning table — detailed breakdown with diff percentages
 •	Recent changes feed — severity-tagged list of recent plan changes
 •	WorldLink vs Competitors table — filterable by speed tier
-________________________________________
+
 Monitoring
 Flower (Celery task monitor) is available at http://localhost:5555. It shows:
 •	Which tasks are running or queued
@@ -209,10 +216,10 @@ SELECT isp_slug, status, plans_found, changes_detected, duration_ms, started_at
 FROM scrape_runs
 ORDER BY started_at DESC
 LIMIT 20;
-________________________________________
+
 Running Tests
 docker compose exec app bash -c "cd /app && PYTHONPATH=/app pytest tests/test_change_detector.py -v"
-________________________________________
+
 Known Limitations
 •	C
 •	
@@ -221,7 +228,7 @@ Known Limitations
 •	DishHome requires Playwright (headless Chromium) because their site is a React SPA. This makes the DishHome scraper slower (~15 seconds) than the others (~2 seconds).
 •	The RAG semantic search uses all-MiniLM-L6-v2, a general-purpose model. It works well for price/speed queries but may miss nuanced bundle comparisons.
 •	Price history charts require at least 2 scrape cycles with a real price change to show a trend line.
-________________________________________
+
 Environment Services
 Service	URL	Purpose
 FastAPI	http://localhost:8000	Backend API
@@ -231,14 +238,13 @@ Flower	http://localhost:5555	Celery task monitor
 PostgreSQL	localhost:5435	Database
 Qdrant	http://localhost:6333	Vector search
 Redis	localhost:6379	Task broker
-________________________________________
+
 Contributing
 1.	Create a feature branch: git checkout -b feature/your-feature
 2.	Make your changes
 3.	Run tests: pytest tests/ -v
 4.	Commit: git commit -m "add: your feature description"
 5.	Push and open a pull request
-________________________________________
-License
-Internal tool — WorldLink Communications Pvt.Ltd..
+
+
 

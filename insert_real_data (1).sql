@@ -1,13 +1,12 @@
--- ============================================================
--- REAL LIVE DATA — Fetched directly from ISP websites
--- WorldLink: worldlink.com.np/internet-plans/residential-broadband/
--- Vianet:    vianet.com.np/home-plan/
--- All prices in NPR — VAT note per ISP below
--- ============================================================
 
--- ── WORLDLINK — Real Plans ──────────────────────────────────
--- Source: worldlink.com.np (TSC included, VAT EXTRA 13%)
--- Prices below are per-period, monthly equivalent calculated
+##  REAL LIVE DATA — Fetched directly from ISP websites
+# WorldLink: worldlink.com.np/internet-plans/residential-broadband/
+## Vianet:    vianet.com.np/home-plan/
+## All prices in NPR — VAT note per ISP below
+
+## WORLDLINK — Real Plans 
+## Source: worldlink.com.np (TSC included, VAT EXTRA 13%)
+## Prices below are per-period, monthly equivalent calculated
 
 DELETE FROM plans WHERE isp_id = 1;
 
@@ -19,7 +18,7 @@ INSERT INTO plans (
   bundles, bundle_flags, description, scrape_url, raw_data
 ) VALUES
 
--- 200 Mbps
+# 200 Mbps
 (1, 'Standard Offer 200 Mbps Internet Only 3 Months',
  'WL 200 Mbps 3M', 'residential', 'active',
  200, '200 Mbps', 1100, 3300, NULL, 'Rs. 3,300 / 3 Months',
@@ -56,7 +55,7 @@ INSERT INTO plans (
  'WorldLink 6G 200 Mbps. Lowest Latency, 4x Seamless Performance, Enhanced Coverage, Fast Internet.',
  'https://worldlink.com.np/internet-plans/residential-broadband/', '{}'),
 
--- 250 Mbps
+## 250 Mbps
 (1, 'Standard Offer 250 Mbps Internet Only 1 Month',
  'WL 250 Mbps 1M', 'residential', 'active',
  250, '250 Mbps', 1450, NULL, NULL, 'Rs. 1,450 / 1 Month',
@@ -94,7 +93,7 @@ INSERT INTO plans (
  '250 Mbps with NETTV. 1 TV, 5 Wi-Fi Express, Time back. VAT extra.',
  'https://worldlink.com.np/internet-plans/residential-broadband/', '{}'),
 
--- 300 Mbps
+## 300 Mbps
 (1, 'Standard Offer 300 Mbps Internet Only 1 Month',
  'WL 300 Mbps 1M', 'residential', 'active',
  300, '300 Mbps', 1550, NULL, NULL, 'Rs. 1,550 / 1 Month',
@@ -133,10 +132,10 @@ INSERT INTO plans (
  'https://worldlink.com.np/internet-plans/residential-broadband/', '{}');
 
 
--- ── VIANET — Real Plans (WiFi 6 Ultra-Fi) ──────────────────
--- Source: vianet.com.np/home-plan/
--- ALL prices INCLUDE 13% VAT already
--- Plans include WiFi 6 Router + Priority Serve
+## VIANET — Real Plans (WiFi 6 Ultra-Fi) 
+## Source: vianet.com.np/home-plan/
+## ALL prices INCLUDE 13% VAT already
+## Plans include WiFi 6 Router + Priority Serve
 
 DELETE FROM plans WHERE isp_id = 2;
 
@@ -148,7 +147,7 @@ INSERT INTO plans (
   bundles, bundle_flags, description, scrape_url, raw_data
 ) VALUES
 
--- Pro WiFi 6 — 250 Mbps
+## Pro WiFi 6 — 250 Mbps
 (2, 'Vianet Pro WiFi 6 250 Mbps 3 Months',
  'Vianet Pro WiFi6 250 3M', 'fiber', 'active',
  250, '250 Mbps', 1333, 4000, NULL, 'Rs. 4,000 / 3 Months',
@@ -167,7 +166,7 @@ INSERT INTO plans (
  'Vianet Pro WiFi 6 250 Mbps yearly. Best value plan. VAT included.',
  'https://www.vianet.com.np/home-plan/', '{}'),
 
--- Ultra WiFi 6 — 400 Mbps
+## Ultra WiFi 6 — 400 Mbps
 (2, 'Vianet Ultra WiFi 6 400 Mbps 3 Months',
  'Vianet Ultra WiFi6 400 3M', 'fiber', 'active',
  400, '400 Mbps', 2767, 8300, NULL, 'Rs. 8,300 / 3 Months',
@@ -186,7 +185,7 @@ INSERT INTO plans (
  'Vianet Ultra WiFi 6 400 Mbps yearly. VAT included.',
  'https://www.vianet.com.np/home-plan/', '{}'),
 
--- Ultra Max WiFi 6 — 600 Mbps
+## Ultra Max WiFi 6 — 600 Mbps
 (2, 'Vianet Ultra Max WiFi 6 600 Mbps 3 Months',
  'Vianet Ultra Max WiFi6 600 3M', 'fiber', 'active',
  600, '600 Mbps', 2000, 6000, NULL, 'Rs. 6,000 / 3 Months',
@@ -205,7 +204,7 @@ INSERT INTO plans (
  'Vianet Ultra Max WiFi 6 600 Mbps yearly. VAT included.',
  'https://www.vianet.com.np/home-plan/', '{}'),
 
--- ViaTV Add-on plans
+ ## ViaTV Add-on plans
 (2, 'Vianet Pro WiFi 6 250 Mbps + ViaTV 12 Months',
  'Vianet Pro WiFi6 250 + ViaTV 12M', 'fiber', 'active',
  250, '250 Mbps', 1400, NULL, 16800, 'Rs. 13,800 + Rs. 3,000 ViaTV / 12 Months',
@@ -216,7 +215,7 @@ INSERT INTO plans (
  'https://www.vianet.com.np/home-plan/', '{}');
 
 
--- ── SUBISU — Plans (estimated from market data) ─────────────
+## SUBISU — Plans (estimated from market data)
 DELETE FROM plans WHERE isp_id = 3;
 
 INSERT INTO plans (
@@ -246,7 +245,7 @@ INSERT INTO plans (
  'https://subisu.net.np/packages', '{}');
 
 
--- ── DISHHOME — Plans ────────────────────────────────────────
+## DISHHOME — Plans 
 DELETE FROM plans WHERE isp_id = 4;
 
 INSERT INTO plans (
@@ -275,7 +274,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/fibernet', '{}');
 
 
--- ── CG NET — Plans ──────────────────────────────────────────
+## CG NET — Plans
 DELETE FROM plans WHERE isp_id = 5;
 
 INSERT INTO plans (
@@ -302,8 +301,7 @@ INSERT INTO plans (
  'CG Net 300 Mbps fiber plan with free router.',
  'https://cgnet.com.np/packages', '{}');
 
-
--- ── REAL CHANGE LOG EVENTS ──────────────────────────────────
+# REAL CHANGE LOG EVENTS
 
 DELETE FROM change_logs WHERE isp_id IN (2,3,4,5);
 
@@ -321,7 +319,7 @@ SELECT 2, p.id, 'plan_added', 'critical',
   NOW() - INTERVAL '1 hour'
 FROM plans p WHERE p.normalized_name = 'Vianet Ultra WiFi6 400 12M' LIMIT 1;
 
--- High: Vianet now includes WiFi 6 router in ALL plans — WorldLink charges extra
+## High: Vianet now includes WiFi 6 router in ALL plans — WorldLink charges extra
 INSERT INTO change_logs (
   isp_id, plan_id, change_type, severity,
   field_name, old_value, new_value, diff_pct,
@@ -334,7 +332,7 @@ SELECT 2, p.id, 'bundle_added', 'high',
   NOW() - INTERVAL '3 hours'
 FROM plans p WHERE p.normalized_name = 'Vianet Pro WiFi6 250 12M' LIMIT 1;
 
--- High: Vianet 600 Mbps launched — no WorldLink equivalent
+## High: Vianet 600 Mbps launched — no WorldLink equivalent
 INSERT INTO change_logs (
   isp_id, plan_id, change_type, severity,
   field_name, old_value, new_value,
@@ -347,7 +345,7 @@ SELECT 2, p.id, 'plan_added', 'high',
   NOW() - INTERVAL '5 hours'
 FROM plans p WHERE p.normalized_name = 'Vianet Ultra Max WiFi6 600 12M' LIMIT 1;
 
--- High: Subisu OTT bundle added
+## High: Subisu OTT bundle added
 INSERT INTO change_logs (
   isp_id, plan_id, change_type, severity,
   field_name, old_value, new_value,
@@ -360,7 +358,7 @@ SELECT 3, p.id, 'bundle_added', 'high',
   NOW() - INTERVAL '6 hours'
 FROM plans p WHERE p.normalized_name = 'Subisu 200 HD' LIMIT 1;
 
--- Medium: CG Net cheapest 100 Mbps in market
+## Medium: CG Net cheapest 100 Mbps in market
 INSERT INTO change_logs (
   isp_id, plan_id, change_type, severity,
   field_name, old_value, new_value, diff_pct,
@@ -373,7 +371,7 @@ SELECT 5, p.id, 'price_decrease', 'medium',
   NOW() - INTERVAL '12 hours'
 FROM plans p WHERE p.normalized_name = 'CG Net 100M' LIMIT 1;
 
--- Update ISP scraper configs with real URLs
+## Update ISP scraper configs with real URLs
 UPDATE isps SET scraper_config = '{
   "plan_list_url": "https://worldlink.com.np/internet-plans/residential-broadband/",
   "pagination_type": "url",
@@ -386,7 +384,7 @@ UPDATE isps SET scraper_config = '{
   "selectors": {"plan_container": ".pricing-table", "name": "h3", "price": ".price", "speed": ".speed"}
 }'::jsonb WHERE slug = 'vianet';
 
--- Verify results
+## Verify results
 SELECT '=== INSERT COMPLETE ===' AS status;
 SELECT i.name AS isp, COUNT(p.id) AS plan_count,
        MIN(p.price_monthly)::int AS min_price_npr,

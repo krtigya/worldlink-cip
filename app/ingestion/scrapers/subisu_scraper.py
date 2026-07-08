@@ -5,7 +5,7 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Known package URLs to visit to trigger API calls
+
 PACKAGE_URLS = [
     "https://subisu.net.np/residential/package/ftth/12-month/5-ghz",
     "https://subisu.net.np/residential/package/ftth/3-month/5-ghz",

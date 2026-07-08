@@ -130,7 +130,7 @@ INSERT INTO plans (
  'https://worldlink.com.np/internet-plans/residential-broadband/', '{}');
 
 
--- ── VIANET — Real Plans (WiFi 6 Ultra-Fi) ──────────────────
+-- VIANET — Real Plans (WiFi 6 Ultra-Fi) 
 -- Source: vianet.com.np/home-plan/
 -- ALL prices INCLUDE 13% VAT already
 -- Plans include WiFi 6 Router + Priority Serve
@@ -213,7 +213,7 @@ INSERT INTO plans (
  'https://www.vianet.com.np/home-plan/', '{}');
 
 
--- ── SUBISU — Plans (estimated from market data) ─────────────
+-- SUBISU — Plans (estimated from market data)
 DELETE FROM plans WHERE isp_id = 3;
 
 INSERT INTO plans (
@@ -243,7 +243,7 @@ INSERT INTO plans (
  'https://subisu.net.np/packages', '{}');
 
 
--- ── DISHHOME — Plans ────────────────────────────────────────
+-- ── DISHHOME — Plans 
 DELETE FROM plans WHERE isp_id = 4;
 
 INSERT INTO plans (
@@ -272,7 +272,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/fibernet', '{}');
 
 
--- ── CG NET — Plans ──────────────────────────────────────────
+-- ── CG NET — Plans 
 DELETE FROM plans WHERE isp_id = 5;
 
 INSERT INTO plans (
@@ -300,7 +300,7 @@ INSERT INTO plans (
  'https://cgnet.com.np/packages', '{}');
 
 
--- ── REAL CHANGE LOG EVENTS ──────────────────────────────────
+-- ── REAL CHANGE LOG EVENTS 
 
 DELETE FROM change_logs WHERE isp_id IN (2,3,4,5);
 

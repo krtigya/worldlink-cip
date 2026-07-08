@@ -35,7 +35,6 @@ class RagService:
         self.groq       = Groq(api_key=settings.groq_api_key)
         self.collection = settings.qdrant_collection
 
-    # ── Embedding ──────────────────────────────────────────────────────────
 
     def _get_embedder(self) -> SentenceTransformer:
         if RagService._embedder is None:
@@ -47,7 +46,6 @@ class RagService:
         model = self._get_embedder()
         return model.encode(texts, normalize_embeddings=True).tolist()
 
-    # ── Collection management ──────────────────────────────────────────────
 
     def ensure_collection(self) -> None:
         existing = [c.name for c in self.qdrant.get_collections().collections]
@@ -69,7 +67,6 @@ class RagService:
                 )
             logger.info("qdrant_collection_created", name=self.collection)
 
-    # ── Index all plans ────────────────────────────────────────────────────
 
     def index_all_plans(self, session: Session) -> int:
         self.ensure_collection()
@@ -89,7 +86,6 @@ class RagService:
             logger.warning("no_plans_to_index")
             return 0
 
-        # Build text representations and embed in batches of 64
         batch_size = 64
         total = 0
 
@@ -126,7 +122,6 @@ class RagService:
         logger.info("qdrant_indexing_complete", total=total)
         return total
 
-    # ── Semantic search ────────────────────────────────────────────────────
 
     def search(
         self,
@@ -188,7 +183,6 @@ class RagService:
             for r in results
         ]
 
-    # ── Full RAG Q&A ───────────────────────────────────────────────────────
 
     def ask(self, question: str) -> dict:
         """
@@ -247,7 +241,6 @@ class RagService:
             "sources": sources,
         }
 
-    # ── Helper ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def _build_plan_text(row) -> str:

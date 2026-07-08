@@ -1,13 +1,4 @@
-"""
-Here, i am writing code for the WorldLink CIP — Change Detection / Diff Engine.
-WorldLink CIP — Change Detection / Diff Engine
-Usage: called by the Celery task after each scrape run.
-Flow:
-    scraper returns List[ScrapedPlan]
-        → diff_plans() compares against DB
-        → returns List[ChangeEvent]
-        → persist_changes() writes to change_logs + updates plans table
-"""
+
 
 from __future__ import annotations
 

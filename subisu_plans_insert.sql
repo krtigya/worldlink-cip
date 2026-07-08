@@ -1,5 +1,5 @@
 
--- REAL DATA — Subisu Cablenet (isp_id = 3)
+--REAL DATA — Subisu Cablenet (isp_id = 3)
 -- Source: nepalitelecom.com (updated May 6, 2026)
 -- ALL prices EXCLUDE 13% VAT (Subisu pricing policy)
 -- VAT-inclusive price = price * 1.13

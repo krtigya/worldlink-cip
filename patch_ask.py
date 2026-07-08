@@ -27,7 +27,7 @@ if old in content:
     print('PATCHED OK')
 else:
     print('NOT FOUND')
-    # Debug: show what we actually have
+    
     idx = content.find('sources = self.search(question, limit=8)')
     print('Found search call at index:', idx)
     print('Context around it:', repr(content[idx:idx+100]))

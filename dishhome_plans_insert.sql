@@ -1,4 +1,4 @@
--- ============================================================
+
 -- REAL LIVE DATA — Fetched from dishhome.com.np/internet/plans
 -- Source verified: nepalitelecom.com (updated January 7, 2026)
 -- DishHome (Dish Media Network) — isp_id = 4
@@ -9,7 +9,7 @@
 -- NOTE: price_monthly here = price for 1-month subscription (NOT annual÷12)
 --       price_quarterly = 3-month total
 --       price_annual = 12-month total
--- ============================================================
+
 
 DELETE FROM plans WHERE isp_id = 4;
 
@@ -21,7 +21,7 @@ INSERT INTO plans (
   bundles, bundle_flags, description, scrape_url, raw_data
 ) VALUES
 
--- ── INTERNET ONLY ────────────────────────────────────────────
+-- ── INTERNET ONLY
 
 -- 100 Mbps Internet Only
 (4, 'DishHome Fibernet 100 Mbps Internet Only 1 Month',
@@ -162,7 +162,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/internet/plans', '{"plan_category":"internet_only","price_24m":21584,"drop_wire_charge_npr":1800,"extra_3mo_bonus":true}'),
 
 
--- ── INTERNET + DTH COMBO ─────────────────────────────────────
+-- ── INTERNET + DTH COMBO 
 
 -- 100 Mbps + DTH
 (4, 'DishHome Fibernet 100 Mbps + DTH Combo 1 Month',
@@ -238,7 +238,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/internet/plans', '{"plan_category":"internet_dth_combo","extra_3mo_bonus":true}'),
 
 
--- ── INTERNET + iTV COMBO (IPTV) ──────────────────────────────
+-- ── INTERNET + iTV COMBO (IPTV) 
 
 -- 100 Mbps + iTV
 (4, 'DishHome Fibernet 100 Mbps + iTV Combo 1 Month',
@@ -304,7 +304,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/internet/plans', '{"plan_category":"internet_itv_combo","extra_3mo_bonus":true}'),
 
 
--- ── ULTRAMAX 1 GBPS ──────────────────────────────────────────
+-- ── ULTRAMAX 1 GBPS 
 
 (4, 'DishHome UltraMax 1 Gbps 12 Months',
  'DH 1Gbps UltraMax 12M', 'fiber', 'active',
@@ -317,7 +317,7 @@ INSERT INTO plans (
  'https://dishhome.com.np/internet/plans', '{"plan_category":"ultramax","max_devices":64,"no_fup":true,"wifi_standard":"802.11ax","annual_only":true}');
 
 
--- ── UPDATE DishHome scraper config ───────────────────────────
+-- ── UPDATE DishHome scraper config 
 UPDATE isps SET scraper_config = '{
   "plan_list_url": "https://dishhome.com.np/internet/plans",
   "render_type": "spa",
@@ -331,7 +331,7 @@ UPDATE isps SET scraper_config = '{
 }'::jsonb WHERE slug = 'dishhome';
 
 
--- ── CHANGE LOGS ──────────────────────────────────────────────
+-- ── CHANGE LOGS 
 
 DELETE FROM change_logs WHERE isp_id = 4;
 
@@ -375,7 +375,7 @@ SELECT 4, p.id, 'price_decrease', 'medium',
 FROM plans p WHERE p.normalized_name = 'DH 100 IO 12M' LIMIT 1;
 
 
--- ── Verify ───────────────────────────────────────────────────
+-- ── Verify 
 SELECT '=== DISHHOME INSERT COMPLETE ===' AS status;
 SELECT i.name AS isp,
        COUNT(p.id) AS plan_count,

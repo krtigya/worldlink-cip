@@ -25,11 +25,10 @@ async def lifespan(app: FastAPI):
     setup_logging()
     logger.info("cip_starting", env=settings.app_env, port=settings.app_port)
 
-    # Auto-create tables (use Alembic migrations in production)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed initial data
+    
     from app.db.session import get_sync_db
     session = next(get_sync_db())
     seed_database(session)
@@ -55,7 +54,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS (restrict in production)
+   
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -64,7 +63,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Request logging
+   
     app.add_middleware(BaseHTTPMiddleware, dispatch=request_logger_middleware)
 
     # Health check

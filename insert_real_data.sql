@@ -1,11 +1,9 @@
--- ============================================================
+
 -- REAL LIVE DATA — Fetched directly from ISP websites
 -- WorldLink: worldlink.com.np/internet-plans/residential-broadband/
 -- Vianet:    vianet.com.np/home-plan/
 -- All prices in NPR — VAT note per ISP below
--- ============================================================
-
--- ── WORLDLINK — Real Plans ──────────────────────────────────
+-- ── WORLDLINK — Real Plans
 -- Source: worldlink.com.np (TSC included, VAT EXTRA 13%)
 -- Prices below are per-period, monthly equivalent calculated
 
@@ -19,7 +17,6 @@ INSERT INTO plans (
   bundles, bundle_flags, description, scrape_url, raw_data
 ) VALUES
 
--- 200 Mbps
 (1, 'Standard Offer 200 Mbps Internet Only 3 Months',
  'WL 200 Mbps 3M', 'residential', 'active',
  200, '200 Mbps', 1100, 3300, NULL, 'Rs. 3,300 / 3 Months',
@@ -373,7 +370,7 @@ SELECT 5, p.id, 'price_decrease', 'medium',
   NOW() - INTERVAL '12 hours'
 FROM plans p WHERE p.normalized_name = 'CG Net 100M' LIMIT 1;
 
--- Update ISP scraper configs with real URLs
+
 UPDATE isps SET scraper_config = '{
   "plan_list_url": "https://worldlink.com.np/internet-plans/residential-broadband/",
   "pagination_type": "url",
@@ -386,7 +383,7 @@ UPDATE isps SET scraper_config = '{
   "selectors": {"plan_container": ".pricing-table", "name": "h3", "price": ".price", "speed": ".speed"}
 }'::jsonb WHERE slug = 'vianet';
 
--- Verify results
+
 SELECT '=== INSERT COMPLETE ===' AS status;
 SELECT i.name AS isp, COUNT(p.id) AS plan_count,
        MIN(p.price_monthly)::int AS min_price_npr,

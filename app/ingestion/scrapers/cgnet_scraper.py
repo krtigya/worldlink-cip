@@ -1,6 +1,8 @@
 import re
 from bs4 import BeautifulSoup
 from datetime import datetime
+
+import httpx
 from app.logger import get_logger
 from curl_cffi.requests import AsyncSession
 

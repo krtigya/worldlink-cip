@@ -3,7 +3,7 @@
 A system that automatically tracks internet service provider (ISP) pricing in Nepal, detects when competitors change their plans, sends alerts, and displays everything on a live dashboard.
 What This Project Does
 WorldLink is an ISP in Nepal. This platform watches competitor ISPs (Vianet, DishHome, and CGNet) every 6 hours, compares their plans against WorldLink's plans, and immediately notifies the team when anything changes — a price drop, a new plan, a bundle addition, or a plan being removed.
-## IF We Implement the AI dashboard, The system also answers natural language questions like "How does WorldLink 300 Mbps compare to DishHome at the same speed?" using AI.
+
 
 Live Features
 •	Scrapes 4 ISPs automatically every 6 hours (WorldLink, Vianet, DishHome, CGNet)

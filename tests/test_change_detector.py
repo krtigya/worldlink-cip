@@ -74,7 +74,7 @@ class TestChangeDetector:
 
     def test_detects_new_plan(self):
         detector = ChangeDetector()
-        session  = self._make_session([])  # no existing plans
+        session  = self._make_session([])  
         scraped  = [make_normalized_plan()]
 
         with patch.object(detector, "_insert_plan", return_value=MagicMock(id=uuid.uuid4())):
@@ -112,7 +112,7 @@ class TestChangeDetector:
         detector = ChangeDetector()
         existing = [make_db_plan(normalized_name="Old Plan 100", download_mbps=100)]
         session  = self._make_session(existing)
-        # Scraped a completely different plan — Old Plan 100 disappears
+        
         scraped  = [make_normalized_plan(normalized_name="New Plan 200", download_mbps=200)]
 
         with patch.object(detector, "_insert_plan", return_value=MagicMock(id=uuid.uuid4())):
@@ -127,7 +127,7 @@ class TestChangeDetector:
         detector = ChangeDetector()
         existing = make_db_plan()
         session  = self._make_session([existing])
-        # Same plan, same price, same bundles
+        
         scraped  = [make_normalized_plan(price_monthly=1999.0, bundle_flags=[])]
 
         with patch.object(session, "add"), patch.object(session, "commit"):

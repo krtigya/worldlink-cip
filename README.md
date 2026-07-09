@@ -103,7 +103,7 @@ GROQ_LLM_MODEL=llama-3.1-8b-instant
 EMBEDDING_MODEL=all-MiniLM-L6-v2
 
 # Alerts
-SLACK_WEBHOOK_URL=your_slack_webhook_url
+SLACK_WEBHOOK_URL=<set this in your .env file, never commit it>
 ALERT_EMAIL=intel@worldlink.com.np
 
 # App
@@ -139,18 +139,6 @@ Changes
 Method	Endpoint	Description
 GET	/api/changes	Recent change log with filters
 GET	/api/changes/summary	Count of changes by type this week
-
-AI Search
-Method	Endpoint	Description
-POST	/api/rag/query	Semantic search — find plans matching a description
-POST	/api/rag/ask	Ask a question in plain English, get an AI answer
-POST	/api/rag/reindex	Rebuild the Qdrant search index
-Example — semantic search:
-POST /api/rag/query
-{ "q": "cheapest unlimited 300 Mbps plan", "limit": 5 }
-Example — AI question:
-POST /api/rag/ask
-{ "question": "How does WorldLink compare to DishHome at 300 Mbps?" }
 
 Reports
 Method	Endpoint	Description
@@ -221,10 +209,7 @@ Running Tests
 docker compose exec app bash -c "cd /app && PYTHONPATH=/app pytest tests/test_change_detector.py -v"
 
 Known Limitations
-•	C
-•	
-•	
-•	GNet blocks scraper requests from some IP ranges (TLS-level rejection). Plans are seeded manually from the live site data.
+•	CGNet blocks scraper requests from some IP ranges (TLS-level rejection). Plans are seeded manually from the live site data.
 •	DishHome requires Playwright (headless Chromium) because their site is a React SPA. This makes the DishHome scraper slower (~15 seconds) than the others (~2 seconds).
 •	The RAG semantic search uses all-MiniLM-L6-v2, a general-purpose model. It works well for price/speed queries but may miss nuanced bundle comparisons.
 •	Price history charts require at least 2 scrape cycles with a real price change to show a trend line.

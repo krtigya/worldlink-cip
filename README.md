@@ -74,8 +74,6 @@ worldlink-cip/
 ├── Dockerfile
 └── requirements.txt
 
-
-
 Getting Started
 Requirements
 •	Docker Desktop installed and running

@@ -107,7 +107,7 @@ SLACK_WEBHOOK_URL=<set this in your .env file, never commit it>
 ALERT_EMAIL=intel@worldlink.com.np
 
 # App
-APP_ENV=development
+APP_ENV=development 
 APP_PORT=8000
 Get a free Groq API key at console.groq.com.
 3. Start the backend

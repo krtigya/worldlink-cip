@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity } from 'lucide-react'
 import { getCompare, getChanges, getPositioning, getChangesSummary } from './api'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 const fmt = (n) => n ? `Rs ${Number(n).toLocaleString()}` : '—'
 
@@ -21,7 +21,7 @@ const positionIcon = (pos) => {
   return null
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+
 
 function StatCard({ label, value, sub, color = 'blue' }) {
   const colors = {
@@ -39,7 +39,6 @@ function StatCard({ label, value, sub, color = 'blue' }) {
   )
 }
 
-// ── Positioning chart ─────────────────────────────────────────────────────────
 
 function PositioningChart({ data }) {
   const chartData = data.map(r => ({
@@ -51,7 +50,7 @@ function PositioningChart({ data }) {
 
   return (
     <div className="bg-white rounded-xl border p-5">
-      <h2 className="font-semibold text-gray-800 mb-4">Price Comparison by Speed Tier</h2>
+      <h2 className="font-semibold text-gray-800 mb-4">Price Comparison by Speed Tier(per_monthly)</h2>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
           <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-30} textAnchor="end" interval={0} />
@@ -78,7 +77,6 @@ function PositioningChart({ data }) {
   )
 }
 
-// ── Compare table ─────────────────────────────────────────────────────────────
 
 function CompareTable({ data }) {
   const [filter, setFilter] = useState('')
@@ -136,8 +134,6 @@ function CompareTable({ data }) {
   )
 }
 
-// ── Change feed ───────────────────────────────────────────────────────────────
-
 function ChangeFeed({ data }) {
   return (
     <div className="bg-white rounded-xl border p-5">
@@ -163,7 +159,7 @@ function ChangeFeed({ data }) {
   )
 }
 
-// ── Positioning table ─────────────────────────────────────────────────────────
+
 
 function PositioningTable({ data }) {
   return (
@@ -210,8 +206,6 @@ function PositioningTable({ data }) {
     </div>
   )
 }
-
-// ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [compare, setCompare]       = useState([])

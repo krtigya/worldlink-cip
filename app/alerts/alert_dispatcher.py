@@ -7,7 +7,6 @@ Builds rich Slack Block Kit messages with color-coded severity.
 import httpx
 from datetime import datetime
 from jinja2 import Template
-from app import alerts
 from app.config import get_settings
 from app.intelligence.rules_engine import AlertPayload
 from app.logger import get_logger
@@ -120,14 +119,13 @@ class AlertDispatcher:
             "attachments": [{"color": SEVERITY_COLOR[top_sev], "blocks": blocks}],
         }
 
-
     async def _send_email(self, alerts: list[AlertPayload]) -> None:
         if not alerts:
             return
         cfg = get_settings()
         subject = (
             f"[CIP Alert] {len(alerts)} change(s) — "
-            f"{'🚨 CRITICAL' if any(a.severity == 'critical' for a in alerts) else '⚠️ HIGH'}"
+            f"{'CRITICAL' if any(a.severity == 'critical' for a in alerts) else ' HIGH'}"
         )
         html = self._build_email_html(alerts)
 

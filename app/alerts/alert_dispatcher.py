@@ -7,6 +7,7 @@ Builds rich Slack Block Kit messages with color-coded severity.
 import httpx
 from datetime import datetime
 from jinja2 import Template
+from app import alerts
 from app.config import get_settings
 from app.intelligence.rules_engine import AlertPayload
 from app.logger import get_logger
@@ -120,42 +121,42 @@ class AlertDispatcher:
         }
 
 
-   async def _send_email(self, alerts: list[AlertPayload]) -> None:
-    if not alerts:
-        return
-    cfg     = get_settings()
-    subject = (
-        f"[CIP Alert] {len(alerts)} change(s) — "
-        f"{'🚨 CRITICAL' if any(a.severity == 'critical' for a in alerts) else '⚠️ HIGH'}"
-    )
-    html = self._build_email_html(alerts)
+    async def _send_email(self, alerts: list[AlertPayload]) -> None:
+        if not alerts:
+            return
+        cfg = get_settings()
+        subject = (
+            f"[CIP Alert] {len(alerts)} change(s) — "
+            f"{'🚨 CRITICAL' if any(a.severity == 'critical' for a in alerts) else '⚠️ HIGH'}"
+        )
+        html = self._build_email_html(alerts)
 
-    if not all([cfg.smtp_host, cfg.smtp_user, cfg.smtp_password, cfg.alert_email]):
-        logger.warning("email_alert_skipped", reason="missing SMTP config")
-        return
+        if not all([cfg.smtp_host, cfg.smtp_user, cfg.smtp_password, cfg.alert_email]):
+            logger.warning("email_alert_skipped", reason="missing SMTP config")
+            return
 
-    import asyncio
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
+        import asyncio
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
 
-    def _send_sync():
-        msg = MIMEMultipart("alternative")
-        msg["From"] = cfg.smtp_user
-        msg["To"] = cfg.alert_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(html, "html"))
+        def _send_sync():
+            msg = MIMEMultipart("alternative")
+            msg["From"] = cfg.smtp_user
+            msg["To"] = cfg.alert_email
+            msg["Subject"] = subject
+            msg.attach(MIMEText(html, "html"))
 
-        with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
-            server.starttls()
-            server.login(cfg.smtp_user, cfg.smtp_password)
-            server.send_message(msg)
+            with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
+                server.starttls()
+                server.login(cfg.smtp_user, cfg.smtp_password)
+                server.send_message(msg)
 
-    try:
-        await asyncio.to_thread(_send_sync)
-        logger.info("email_sent", to=cfg.alert_email, subject=subject, alert_count=len(alerts))
-    except Exception as e:
-        logger.error("email_dispatch_failed", error=str(e))
+        try:
+            await asyncio.to_thread(_send_sync)
+            logger.info("email_sent", to=cfg.alert_email, subject=subject, alert_count=len(alerts))
+        except Exception as e:
+            logger.error("email_dispatch_failed", error=str(e))
 
     def _build_email_html(self, alerts: list[AlertPayload]) -> str:
         template = Template("""

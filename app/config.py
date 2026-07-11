@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     slack_webhook_url: str = ""
     alert_email: str = "intel@worldlink.com.np"
 
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
     
     app_port: int = 8000
     app_env: str = "development"

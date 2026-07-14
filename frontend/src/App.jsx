@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity, X } from 'lucide-react'
 import { getCompare, getChanges, getPositioning, getChangesSummary } from './api'
 
 
@@ -207,12 +207,45 @@ function PositioningTable({ data }) {
   )
 }
 
+
+function ToastNotification({ toast, onDismiss }) {
+  return (
+    <div className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg animate-slide-in ${severityColor[toast.severity] || 'bg-gray-50'}`}>
+      <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm">{toast.isp_name}</span>
+          <span className="text-xs opacity-60 uppercase">{toast.severity}</span>
+        </div>
+        <p className="text-xs opacity-80 mt-0.5">{toast.summary}</p>
+      </div>
+      <button onClick={() => onDismiss(toast.id)} className="text-xs opacity-50 hover:opacity-100 shrink-0">
+        <X size={14} />
+      </button>
+    </div>
+  )
+}
+
+function ToastContainer({ toasts, onDismiss }) {
+  if (toasts.length === 0) return null
+  return (
+    <div className="fixed top-4 right-4 z-50 space-y-2 w-96 max-w-full">
+      {toasts.map(t => (
+        <ToastNotification key={t.id} toast={t} onDismiss={onDismiss} />
+      ))}
+    </div>
+  )
+}
+
+
 export default function App() {
   const [compare, setCompare]       = useState([])
   const [changes, setChanges]       = useState([])
   const [positioning, setPositioning] = useState([])
   const [summary, setSummary]       = useState(null)
   const [loading, setLoading]       = useState(true)
+  const [toasts, setToasts]         = useState([])
+  const seenIds = useRef(new Set())
 
   useEffect(() => {
     Promise.all([
@@ -225,7 +258,30 @@ export default function App() {
       setChanges(chg.data.data)
       setPositioning(pos.data.data)
       setSummary({ ...pos.data.summary, changes: summ.data.data })
+      chg.data.data.forEach(c => seenIds.current.add(c.id))
     }).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      getChanges({ days: 1, limit: 20 }).then(res => {
+        const newOnes = res.data.data.filter(c => !seenIds.current.has(c.id))
+        if (newOnes.length === 0) return
+
+        newOnes.forEach(c => seenIds.current.add(c.id))
+
+        setToasts(prev => [...newOnes, ...prev])
+        setChanges(prev => [...newOnes, ...prev])
+
+        newOnes.forEach(c => {
+          setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== c.id))
+          }, 8000)
+        })
+      }).catch(err => console.error('Poll failed:', err))
+    }, 45000)
+
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) return (
@@ -239,6 +295,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ToastContainer
+        toasts={toasts}
+        onDismiss={(id) => setToasts(prev => prev.filter(t => t.id !== id))}
+      />
+
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

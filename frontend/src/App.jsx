@@ -3,8 +3,6 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity, X } from 'lucide-react'
 import { getCompare, getChanges, getPositioning, getChangesSummary } from './api'
 
-
-
 const fmt = (n) => n ? `Rs ${Number(n).toLocaleString()}` : '—'
 
 const severityColor = {
@@ -12,6 +10,7 @@ const severityColor = {
   high:     'bg-orange-100 text-orange-700 border-orange-200',
   medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
   low:      'bg-green-100 text-green-700 border-green-200',
+
 }
 
 const positionIcon = (pos) => {
@@ -20,8 +19,6 @@ const positionIcon = (pos) => {
   if (pos === 'no_worldlink_plan')  return <Minus className="text-gray-400" size={16} />
   return null
 }
-
-
 
 function StatCard({ label, value, sub, color = 'blue' }) {
   const colors = {
@@ -38,7 +35,6 @@ function StatCard({ label, value, sub, color = 'blue' }) {
     </div>
   )
 }
-
 
 function PositioningChart({ data }) {
   const chartData = data.map(r => ({
@@ -76,7 +72,6 @@ function PositioningChart({ data }) {
     </div>
   )
 }
-
 
 function CompareTable({ data }) {
   const [filter, setFilter] = useState('')
@@ -207,7 +202,6 @@ function PositioningTable({ data }) {
   )
 }
 
-
 function ToastNotification({ toast, onDismiss }) {
   return (
     <div className={`flex items-start gap-3 p-4 rounded-lg border shadow-lg animate-slide-in ${severityColor[toast.severity] || 'bg-gray-50'}`}>
@@ -236,7 +230,6 @@ function ToastContainer({ toasts, onDismiss }) {
     </div>
   )
 }
-
 
 export default function App() {
   const [compare, setCompare]       = useState([])

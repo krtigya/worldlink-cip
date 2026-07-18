@@ -274,9 +274,6 @@ class ReportGenerator:
             ))
         self.session.commit()
 
-
-# -- Sample report output ---------------------------------------------------
-
 SAMPLE_REPORT_OUTPUT = {
     "report_week": "2025-06-02",
     "summary": (

@@ -59,9 +59,10 @@ async def compare_vs_worldlink(db: AsyncSession = Depends(get_db)):
     """WorldLink pricing vs every competitor at matching speed tiers."""
     result = await db.execute(text("""
         WITH wl AS (
-            SELECT p.download_mbps, p.price_monthly
+            SELECT p.download_mbps, MIN(p.price_monthly) AS price_monthly
             FROM plans p JOIN isps i ON i.id = p.isp_id
             WHERE i.is_competitor = false AND p.status = 'active'
+            GROUP BY p.download_mbps
         )
         SELECT p.id, i.name AS competitor_name, i.slug AS competitor_slug,
                p.normalized_name, p.download_mbps,

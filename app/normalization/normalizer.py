@@ -109,20 +109,27 @@ def normalize_bundles(raw_bundles: list[str]) -> tuple[list[dict], list[str]]:
 
 
 
+CONTRACT_MONTH_PATTERNS = [
+    (re.compile(r"(\d+)\s*months?\b", re.I), lambda m: int(m.group(1))),
+    (re.compile(r"\b(\d+)M\b", re.I), lambda m: int(m.group(1))),
+    (re.compile(r"(\d+)\s*years?\b", re.I), lambda m: int(m.group(1)) * 12),
+    (re.compile(r"annual|yearly|/\s*year\b", re.I), lambda m: 12),
+]
 
-def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[int], bool]:
-    """Returns (fup_gb, is_unlimited)."""
-    text = " ".join(raw_bundles + [description]).lower()
 
-    if re.search(r"unlimited|no\s*fup|no\s*data\s*cap|uncapped", text, re.I):
-        return None, True
+def detect_contract_months(text: str) -> int:
+    """
+    Detect the contract duration (in months) from plan name/description text.
+    Defaults to 1 (monthly) if no duration text is found.
+    """
+    for pattern, converter in CONTRACT_MONTH_PATTERNS:
+        m = pattern.search(text)
+        if m:
+            months = converter(m)
+            if months > 0:
+                return months
+    return 1
 
-    m = (re.search(r"(\d+)\s*(?:gb|gigabyte)?\s*(?:fup|data\s*limit|data\s*cap)", text, re.I)
-         or re.search(r"fup[:\s]+(\d+)\s*gb", text, re.I))
-    if m:
-        return int(m.group(1)), False
-
-    return None, False
 
 
 def detect_plan_type(name: str) -> str:
@@ -177,13 +184,27 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
     Raises ValueError if speed or price cannot be parsed.
     """
     download_mbps, upload_mbps = normalize_speed(raw.get("raw_speed", "0 Mbps"))
-    price_monthly = normalize_price(raw.get("raw_price", "0"))
+    raw_price_value = normalize_price(raw.get("raw_price", "0"))
     bundles, bundle_flags = normalize_bundles(raw.get("raw_bundles", []))
     fup_gb, is_unlimited = detect_fup(raw.get("raw_bundles", []), raw.get("raw_description", ""))
     normalized_name = normalize_plan_name(raw.get("raw_name", ""), isp_slug)
     plan_type = detect_plan_type(raw.get("raw_name", ""))
 
-    
+    duration_text = f"{raw.get('raw_name', '')} {raw.get('raw_description', '')}"
+    contract_months = detect_contract_months(duration_text)
+
+    price_quarterly = None
+    price_annual = None
+
+    if contract_months == 1:
+        price_monthly = raw_price_value
+    else:
+        price_monthly = round(raw_price_value / contract_months, 2)
+        if contract_months == 3:
+            price_quarterly = raw_price_value
+        elif contract_months == 12:
+            price_annual = raw_price_value
+
     raw_price_str = raw.get("raw_price", "")
     vat_included = not bool(re.search(r"excl|exclusive|without\s*vat|before\s*vat", raw_price_str, re.I))
 
@@ -200,10 +221,12 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
         vat_included=vat_included,
         fup_gb=fup_gb,
         is_unlimited=is_unlimited,
-        contract_months=1,
+        contract_months=contract_months,
         bundles=bundles,
         bundle_flags=bundle_flags,
         description=raw.get("raw_description"),
         scrape_url=raw.get("source_url", ""),
         raw_data=raw,
+        price_quarterly=price_quarterly,
+        price_annual=price_annual,
     )

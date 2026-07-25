@@ -1,5 +1,5 @@
 """
-Unit tests for the normalization layer.
+this is a set of unit tests for the normalization layer
 Run with: pytest tests/test_normalizer.py -v
 """
 import pytest

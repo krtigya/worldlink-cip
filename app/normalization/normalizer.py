@@ -1,6 +1,7 @@
 """
+here we refactor the plan normalization logic.
 Converts raw scraped strings into clean, typed, structured plan data.
-Speed → Mbps int. Price → NPR float. Bundles → typed list.
+Speed : Mbps int. Price → NPR float. Bundles → typed list.
 """
 import re
 from dataclasses import dataclass, field
@@ -8,8 +9,6 @@ from typing import Optional
 from app.logger import get_logger
 
 logger = get_logger(__name__)
-
-
 
 SPEED_PATTERNS = [
     (re.compile(r"(\d+(?:\.\d+)?)\s*gbps?", re.I), lambda m: int(float(m.group(1)) * 1000)),
@@ -42,9 +41,6 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
 
     raise ValueError(f"Cannot parse speed: {raw!r}")
 
-
-
-
 def normalize_price(raw: str) -> float:
     """Extract NPR float from any price string."""
     cleaned = re.sub(r"rs\.?|npr\.?|रु\.?|₨", "", raw, flags=re.I)
@@ -59,9 +55,6 @@ def normalize_price(raw: str) -> float:
     if not num:
         raise ValueError(f"Cannot parse price: {raw!r}")
     return float(num.group(1))
-
-
-
 
 BUNDLE_RULES = [
     {
@@ -107,7 +100,19 @@ def normalize_bundles(raw_bundles: list[str]) -> tuple[list[dict], list[str]]:
 
     return bundles, sorted(flags)
 
+def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[int], bool]:
+    """Returns (fup_gb, is_unlimited)."""
+    text = " ".join(raw_bundles + [description]).lower()
 
+    if re.search(r"unlimited|no\s*fup|no\s*data\s*cap|uncapped", text, re.I):
+        return None, True
+
+    m = (re.search(r"(\d+)\s*(?:gb|gigabyte)?\s*(?:fup|data\s*limit|data\s*cap)", text, re.I)
+         or re.search(r"fup[:\s]+(\d+)\s*gb", text, re.I))
+    if m:
+        return int(m.group(1)), False
+
+    return None, False
 
 CONTRACT_MONTH_PATTERNS = [
     (re.compile(r"(\d+)\s*months?\b", re.I), lambda m: int(m.group(1))),
@@ -115,7 +120,6 @@ CONTRACT_MONTH_PATTERNS = [
     (re.compile(r"(\d+)\s*years?\b", re.I), lambda m: int(m.group(1)) * 12),
     (re.compile(r"annual|yearly|/\s*year\b", re.I), lambda m: 12),
 ]
-
 
 def detect_contract_months(text: str) -> int:
     """
@@ -130,8 +134,6 @@ def detect_contract_months(text: str) -> int:
                 return months
     return 1
 
-
-
 def detect_plan_type(name: str) -> str:
     n = name.lower()
     if re.search(r"enterprise|corporate|data\s*center", n): return "enterprise"
@@ -140,19 +142,12 @@ def detect_plan_type(name: str) -> str:
     if re.search(r"wireless|4g|lte|wimax|radio", n):        return "wireless"
     return "residential"
 
-
-
-
 def normalize_plan_name(raw: str, isp_slug: str) -> str:
     name = re.sub(r"\s+", " ", raw).strip()
     name = re.sub(r"[^\w\s\-+.]", "", name)
     name = re.sub(r"\b(package|plan|pack|pkg|offer|scheme)\b", "", name, flags=re.I)
     name = re.sub(r"\s+", " ", name).strip()
     return name or f"{isp_slug.upper()} Plan"
-
-
-
-
 @dataclass
 class NormalizedPlan:
     isp_id: int
@@ -207,6 +202,7 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
 
     raw_price_str = raw.get("raw_price", "")
     vat_included = not bool(re.search(r"excl|exclusive|without\s*vat|before\s*vat", raw_price_str, re.I))
+
 
     return NormalizedPlan(
         isp_id=raw["isp_id"],

@@ -137,3 +137,40 @@ class TestNormalizePlan:
         }
         with pytest.raises(ValueError):
             normalize_plan(raw, "test")
+
+
+
+class TestContractMonthsDivision:
+
+    def test_one_month_plan_unchanged(self):
+        raw = {
+            "isp_id": 1, "raw_name": "WorldLink 300 Mbps for 1 Month",
+            "raw_price": "Rs. 1,550", "raw_speed": "300 Mbps",
+            "raw_bundles": [], "raw_description": "", "source_url": "",
+        }
+        plan = normalize_plan(raw, "worldlink")
+        assert plan.contract_months == 1
+        assert plan.price_monthly == 1550.0
+        assert plan.price_annual is None
+
+    def test_twelve_month_plan_divides_to_true_monthly(self):
+        raw = {
+            "isp_id": 1, "raw_name": "WorldLink 300 Mbps for 12 Months",
+            "raw_price": "Rs. 15,600", "raw_speed": "300 Mbps",
+            "raw_bundles": [], "raw_description": "", "source_url": "",
+        }
+        plan = normalize_plan(raw, "worldlink")
+        assert plan.contract_months == 12
+        assert plan.price_monthly == 1300.0
+        assert plan.price_annual == 15600.0
+
+    def test_three_month_plan_divides_to_true_monthly(self):
+        raw = {
+            "isp_id": 1, "raw_name": "WorldLink 300 Mbps for 3 Months",
+            "raw_price": "Rs. 4,050", "raw_speed": "300 Mbps",
+            "raw_bundles": [], "raw_description": "", "source_url": "",
+        }
+        plan = normalize_plan(raw, "worldlink")
+        assert plan.contract_months == 3
+        assert plan.price_monthly == 1350.0
+        assert plan.price_quarterly == 4050.0

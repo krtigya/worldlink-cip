@@ -139,7 +139,6 @@ class TestNormalizePlan:
             normalize_plan(raw, "test")
 
 
-
 class TestContractMonthsDivision:
 
     def test_one_month_plan_unchanged(self):

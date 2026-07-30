@@ -50,11 +50,10 @@ class DishhomeScraper(BaseScraper):
                         itv_stb        = price_entry.get("itv_stb_charge", 0)
                         no_of_itv      = price_entry.get("no_of_itv", 0)
 
-                        total_price = (
-                            internet_price + installation + drop_wire
-                            + router_charge + itv_stb
-                        )
+                        recurring_price = internet_price
 
+                        one_time_fees = installation + drop_wire + router_charge + itv_stb
+                        
                         key = f"{title}_{duration}"
                         if key in seen_keys:
                             continue

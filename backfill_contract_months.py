@@ -25,10 +25,14 @@ for plan in plans:
     if contract_months == plan.contract_months:
         continue  # already correct, skip
 
-    # price_monthly on this row is assumed to ALREADY be the true monthly
-    # rate (either it was always contract_months=1, or a prior scrape after
-    # the normalizer fix already divided it correctly). Reconstruct the
-    # original period total from that for price_quarterly/price_annual.
+    """price_monthly on this row is assumed to ALREADY be the true monthly
+    rate (either it was always contract_months=1, or a prior scrape after
+    the normalizer fix already divided it correctly). Reconstruct the
+    original period total from that for price_quarterly/price_annual."""
+   
+   
+   
+   
     total_for_period = float(plan.price_monthly) * contract_months
 
     plan.contract_months = contract_months

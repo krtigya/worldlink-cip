@@ -288,12 +288,15 @@ class ChangeDetector:
         return plan
 
     def _update_plan(self, plan: Plan, p: NormalizedPlan) -> None:
-        plan.price_monthly = p.price_monthly
-        plan.download_mbps = p.download_mbps
-        plan.upload_mbps   = p.upload_mbps
-        plan.fup_gb        = p.fup_gb
-        plan.is_unlimited  = p.is_unlimited
-        plan.bundles       = p.bundles
-        plan.bundle_flags  = p.bundle_flags
-        plan.raw_data      = p.raw_data
-        plan.last_seen_at  = datetime.now(timezone.utc)
+        plan.price_monthly   = p.price_monthly
+        plan.price_quarterly = p.price_quarterly
+        plan.price_annual    = p.price_annual
+        plan.contract_months = p.contract_months
+        plan.download_mbps   = p.download_mbps
+        plan.upload_mbps     = p.upload_mbps
+        plan.fup_gb          = p.fup_gb
+        plan.is_unlimited    = p.is_unlimited
+        plan.bundles         = p.bundles
+        plan.bundle_flags    = p.bundle_flags
+        plan.raw_data        = p.raw_data
+        plan.last_seen_at    = datetime.now(timezone.utc)

@@ -72,7 +72,8 @@ class DishhomeScraper(BaseScraper):
                         intercepted.append({
                             "isp_id":          self.isp.id,
                             "raw_name":        f"{title} {duration}",
-                            "raw_price":       f"Rs. {total_price:,}",
+                            "raw_price": f"Rs. {recurring_price:,}",
+                            "raw_setup_fee": one_time_fees,
                             "raw_speed":       speed,
                             "raw_bundles":     bundles,
                             "raw_description": description,

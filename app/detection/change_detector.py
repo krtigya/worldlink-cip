@@ -292,6 +292,7 @@ class ChangeDetector:
         plan.price_quarterly = p.price_quarterly
         plan.price_annual    = p.price_annual
         plan.contract_months = p.contract_months
+        plan.setup_fee       = p.setup_fee
         plan.download_mbps   = p.download_mbps
         plan.upload_mbps     = p.upload_mbps
         plan.fup_gb          = p.fup_gb

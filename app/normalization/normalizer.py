@@ -1,7 +1,6 @@
 """
-here we refactor the plan normalization logic.
 Converts raw scraped strings into clean, typed, structured plan data.
-Speed : Mbps int. Price → NPR float. Bundles → typed list.
+Speed → Mbps int. Price → NPR float. Bundles → typed list.
 """
 import re
 from dataclasses import dataclass, field
@@ -9,6 +8,8 @@ from typing import Optional
 from app.logger import get_logger
 
 logger = get_logger(__name__)
+
+
 
 SPEED_PATTERNS = [
     (re.compile(r"(\d+(?:\.\d+)?)\s*gbps?", re.I), lambda m: int(float(m.group(1)) * 1000)),
@@ -23,7 +24,6 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
     """Returns (download_mbps, upload_mbps). upload_mbps may be None."""
     cleaned = raw.strip().replace(",", "")
 
-    
     split_match = re.match(r"^(\d+)/(\d+)\s*(?:mbps?)?$", cleaned, re.I)
     if split_match:
         return int(split_match.group(1)), int(split_match.group(2))
@@ -33,7 +33,6 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
         if m:
             return converter(m), None
 
-    
     num = re.search(r"(\d+)", cleaned)
     if num:
         n = int(num.group(1))
@@ -41,12 +40,14 @@ def normalize_speed(raw: str) -> tuple[int, Optional[int]]:
 
     raise ValueError(f"Cannot parse speed: {raw!r}")
 
+
+
+
 def normalize_price(raw: str) -> float:
     """Extract NPR float from any price string."""
     cleaned = re.sub(r"rs\.?|npr\.?|रु\.?|₨", "", raw, flags=re.I)
     cleaned = cleaned.replace(",", "").strip().lower()
 
-    # "799/mo" or "799 per month"
     mo = re.search(r"(\d+(?:\.\d+)?)\s*(?:/mo|per\s*month|monthly)", cleaned, re.I)
     if mo:
         return float(mo.group(1))
@@ -55,6 +56,9 @@ def normalize_price(raw: str) -> float:
     if not num:
         raise ValueError(f"Cannot parse price: {raw!r}")
     return float(num.group(1))
+
+
+
 
 BUNDLE_RULES = [
     {
@@ -100,6 +104,9 @@ def normalize_bundles(raw_bundles: list[str]) -> tuple[list[dict], list[str]]:
 
     return bundles, sorted(flags)
 
+
+
+
 def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[int], bool]:
     """Returns (fup_gb, is_unlimited)."""
     text = " ".join(raw_bundles + [description]).lower()
@@ -114,17 +121,26 @@ def detect_fup(raw_bundles: list[str], description: str = "") -> tuple[Optional[
 
     return None, False
 
+
 CONTRACT_MONTH_PATTERNS = [
+    # "3 Months", "12 Month", "1month" etc.
     (re.compile(r"(\d+)\s*months?\b", re.I), lambda m: int(m.group(1))),
+    # "12M", "3M" — CGNet-style shorthand. Word boundary after M prevents
+    # this from matching inside "Mbps" (M and b are both word chars, so
+    # \b won't fire between them).
     (re.compile(r"\b(\d+)M\b", re.I), lambda m: int(m.group(1))),
+    # "1 Year", "annual", "yearly", "/year"
     (re.compile(r"(\d+)\s*years?\b", re.I), lambda m: int(m.group(1)) * 12),
     (re.compile(r"annual|yearly|/\s*year\b", re.I), lambda m: 12),
 ]
 
+
 def detect_contract_months(text: str) -> int:
     """
     Detect the contract duration (in months) from plan name/description text.
-    Defaults to 1 (monthly) if no duration text is found.
+    Defaults to 1 (monthly) if no duration text is found — this matches the
+    previous hardcoded behavior for any plan we can't confidently parse, so
+    plans that already worked correctly are unaffected.
     """
     for pattern, converter in CONTRACT_MONTH_PATTERNS:
         m = pattern.search(text)
@@ -134,6 +150,7 @@ def detect_contract_months(text: str) -> int:
                 return months
     return 1
 
+
 def detect_plan_type(name: str) -> str:
     n = name.lower()
     if re.search(r"enterprise|corporate|data\s*center", n): return "enterprise"
@@ -142,12 +159,19 @@ def detect_plan_type(name: str) -> str:
     if re.search(r"wireless|4g|lte|wimax|radio", n):        return "wireless"
     return "residential"
 
+
+
+
 def normalize_plan_name(raw: str, isp_slug: str) -> str:
     name = re.sub(r"\s+", " ", raw).strip()
     name = re.sub(r"[^\w\s\-+.]", "", name)
     name = re.sub(r"\b(package|plan|pack|pkg|offer|scheme)\b", "", name, flags=re.I)
     name = re.sub(r"\s+", " ", name).strip()
     return name or f"{isp_slug.upper()} Plan"
+
+
+
+
 @dataclass
 class NormalizedPlan:
     isp_id: int
@@ -185,6 +209,11 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
     normalized_name = normalize_plan_name(raw.get("raw_name", ""), isp_slug)
     plan_type = detect_plan_type(raw.get("raw_name", ""))
 
+    # Detect the real contract length from the plan's name/description text.
+    # raw_price_value at this point is whatever total the scraper found on
+    # the page — for a 1-month plan that IS the monthly price already, but
+    # for a 3-month or 12-month plan it's the FULL PERIOD TOTAL, not a
+    # monthly rate. We divide it down to a true monthly-equivalent below.
     duration_text = f"{raw.get('raw_name', '')} {raw.get('raw_description', '')}"
     contract_months = detect_contract_months(duration_text)
 
@@ -199,10 +228,17 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
             price_quarterly = raw_price_value
         elif contract_months == 12:
             price_annual = raw_price_value
+        # For other lengths (e.g. 6 months), we only have price_monthly to
+        # store — there's no price_semiannual column in the current schema.
 
     raw_price_str = raw.get("raw_price", "")
     vat_included = not bool(re.search(r"excl|exclusive|without\s*vat|before\s*vat", raw_price_str, re.I))
 
+    # setup_fee: one-time charges (installation, drop wire, router, STB, etc.)
+    # that scrapers may report separately from the recurring price. Not every
+    # scraper populates this — defaults to 0.0 for ISPs that don't report it,
+    # which is the same behavior as before this field existed.
+    setup_fee = float(raw.get("raw_setup_fee", 0) or 0)
 
     return NormalizedPlan(
         isp_id=raw["isp_id"],
@@ -225,4 +261,5 @@ def normalize_plan(raw: dict, isp_slug: str) -> NormalizedPlan:
         raw_data=raw,
         price_quarterly=price_quarterly,
         price_annual=price_annual,
+        setup_fee=setup_fee,
     )

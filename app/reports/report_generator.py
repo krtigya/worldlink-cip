@@ -254,7 +254,7 @@ class ReportGenerator:
             recs.insert(0, "URGENT: Critical threats detected. Schedule strategy review this week.")
         return recs
 
-    # -- Persistence --------------------------------------------------------
+    
 
     def _persist(self, week_start: date, summary: str, report: dict) -> None:
         existing = (

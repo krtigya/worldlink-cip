@@ -1,10 +1,19 @@
-import re
+"""
+HTTP scraper for CGNet — the site was redesigned (Wi-Fi 6 packages page).
+Good news: it's server-rendered — every plan card (all speed/duration/service
+combinations) is present in the initial HTML, just toggled `hidden` client-side
+by the interactive filter UI. So a plain httpx+BeautifulSoup fetch captures
+everything without needing Playwright/JS execution.
+
+Selectors are attribute-based (data-service, data-duration, data-plan-id) rather
+than CSS classes, since those are stable identifiers the site's own filter JS
+relies on — much less likely to break on a future style-only redesign than
+class names would be.
+"""
+import httpx
 from bs4 import BeautifulSoup
 from datetime import datetime
-
-import httpx
 from app.logger import get_logger
-from curl_cffi.requests import AsyncSession
 
 logger = get_logger(__name__)
 
@@ -53,41 +62,56 @@ class CgnetScraper:
     def _parse_plans(self, soup: BeautifulSoup, url: str) -> list[dict]:
         plans = []
 
-        speed_headings = soup.find_all("h3", string=re.compile(r"\d+\s*Mbps", re.I))
+        # Cards are <article data-wifi-six-plan-card data-service="..." data-duration="...">
+        # Every combination is present in the DOM regardless of the `hidden`
+        # attribute (that's just the client-side filter's current display state).
+        cards = soup.find_all("article", attrs={"data-wifi-six-plan-card": True})
 
-        for h3 in speed_headings:
-            speed_text = h3.get_text(strip=True)
-            price_text = ""
-            price_raw  = ""
+        for card in cards:
+            service  = card.get("data-service", "internet")
+            duration = card.get("data-duration", "")
 
-            for tag in h3.find_next_siblings():
-                t = tag.get_text(strip=True)
-                m = re.search(r"Rs\.\s*([\d,]+)\s*/\s*year", t, re.I)
-                if m:
-                    price_raw  = t
-                    price_text = m.group(1).replace(",", "")
-                    break
-                if tag.name in ("h2", "h3"):
-                    break
+            speed_el = card.find("h3")
+            price_el = card.find("strong")
+            if not speed_el or not price_el:
+                continue
 
-            features = []
-            for tag in h3.find_next_siblings():
-                if tag.name in ("ul", "ol"):
-                    features = [li.get_text(strip=True) for li in tag.find_all("li")]
-                    break
-                if tag.name in ("h2", "h3"):
-                    break
+            raw_speed = speed_el.get_text(strip=True)
+            raw_price = price_el.get_text(strip=True)
 
-            if speed_text and price_text:
-                plans.append({
-                    "isp_id":          self.isp.id,
-                    "raw_name":        f"CGNet WiFi6 {speed_text} 12M",
-                    "raw_price":       price_raw,
-                    "raw_speed":       speed_text,
-                    "raw_bundles":     features,
-                    "raw_description": f"CGNet Wi-Fi 6 {speed_text} annual plan. No FUP. VAT included.",
-                    "source_url":      url,
-                    "scraped_at":      datetime.utcnow().isoformat(),
-                })
+            is_iptv = service == "iptv"
+            service_label = "Internet + IPTV" if is_iptv else "Internet Only"
+            raw_name = f"CGNet {raw_speed} {service_label} {duration} Months"
+
+            # Feature bullet points (router included, latency, etc.)
+            raw_bundles = [
+                li.get_text(strip=True)
+                for li in card.select("ul li")
+                if li.get_text(strip=True)
+            ]
+            if is_iptv:
+                raw_bundles.append("IPTV service included")
+
+            highest_speed = bool(card.find(string=lambda t: t and "Highest speed" in t))
+            if highest_speed:
+                raw_bundles.append("Highest speed tier")
+
+            button = card.find("button", class_="js-open-plan")
+            plan_id = button.get("data-plan-id") if button else None
+
+            plans.append({
+                "isp_id":          self.isp.id,
+                "raw_name":        raw_name,
+                "raw_price":       raw_price,
+                "raw_speed":       raw_speed,
+                "raw_bundles":     raw_bundles,
+                "raw_description": (
+                    f"CGNet Wi-Fi 6 {raw_speed}, {service_label}, {duration}-month term. "
+                    f"No FUP applied. Prices include VAT."
+                ),
+                "source_url":      url,
+                "scraped_at":      datetime.utcnow().isoformat(),
+                "raw_data": {"plan_id": plan_id, "service": service, "duration": duration},
+            })
 
         return plans
